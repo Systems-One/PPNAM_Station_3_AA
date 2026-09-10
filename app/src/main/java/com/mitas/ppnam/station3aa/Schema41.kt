@@ -9,7 +9,7 @@ import java.util.UUID
 
 /**
  * The shared Station 2 schema 4.1 authentication envelope, as adopted by Station 3
- * (Station1_MQTT_Contract v3.0.0 §4.1-§4.2):
+ * (docs/Station3_MQTT_Contract_v1.md §5):
  *
  *  - every auth request carries messageId, schemaVersion "4.1", deviceId and a timestampUtc
  *    with exactly six fractional digits;
