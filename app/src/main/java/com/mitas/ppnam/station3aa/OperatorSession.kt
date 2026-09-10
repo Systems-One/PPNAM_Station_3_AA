@@ -29,8 +29,8 @@ data class OperatorSession(
      * Whether to OFFER [tab] in the UI. Presentation only — the station re-checks every
      * request server-side (ACTION_NOT_ALLOWED).
      *
-     * Fails CLOSED (MQTT base standard §5): a login that arrived without allowedTabs, or with an
-     * empty list, enables no workflows at all.
+     * Fails CLOSED (docs/Station3_MQTT_Contract_v1.md §4): a login that arrived without
+     * allowedTabs, or with an empty list, enables no workflows at all.
      */
     fun canShow(tab: String): Boolean = tab in allowedTabs
 }

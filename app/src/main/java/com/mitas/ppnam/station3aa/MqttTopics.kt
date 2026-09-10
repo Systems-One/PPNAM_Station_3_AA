@@ -1,8 +1,8 @@
 package com.mitas.ppnam.station3aa
 
 /**
- * Per-station namespace topic structure per MQTT_CONTRACT.md (2026-08-17 restructure — payloads,
- * QoS, and workflow semantics unchanged; only the topic paths moved):
+ * Per-station namespace topic structure per docs/Station3_MQTT_Contract_v1.md §1, which binds
+ * the fleet base standard (Andriod/MQTT_BASE_README.md §1) to Station 3's namespace:
  *
  *   PPNAM/station_3                            station presence (retained, LWT)
  *   PPNAM/station_3/{deviceId}                 device presence (retained, LWT)

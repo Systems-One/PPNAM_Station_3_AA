@@ -11,7 +11,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Operator authentication over MQTT — the shared Station 2 schema 4.1 contract on Station 3's
- * namespaced topics (Station1_MQTT_Contract v3.0.0 §4):
+ * namespaced topics (docs/Station3_MQTT_Contract_v1.md §5; full SCRAM detail lives in
+ * Station 1's contract §4.3):
  *
  *   req/scram_start_requested   -> res/scram_challenge
  *   req/scram_proof_requested   -> res/scram_proof_result
