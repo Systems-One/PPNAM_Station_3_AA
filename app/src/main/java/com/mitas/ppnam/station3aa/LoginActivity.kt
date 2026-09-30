@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.widget.ArrayAdapter
 import androidx.activity.addCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -33,11 +34,19 @@ class LoginActivity : AppCompatActivity() {
         runOnUiThread { binding.connectionPill.setStatus(status) }
     }
 
+    /** Each time the broker link comes up with the login screen showing, refresh the dropdown. */
+    private val connectionListener: (Boolean) -> Unit = { connected ->
+        if (connected) runOnUiThread { loadOperatorList() }
+    }
+
+    private lateinit var operatorAdapter: ArrayAdapter<OperatorEntry>
+
     private val badgeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == "com.rscja.scanner.action.scanner.RFID") {
-                val tag = intent.getStringExtra("data") ?: return
-                if (tag.isNotBlank()) attemptBadgeLogin(tag)
+            if (intent?.action == ScannerApp.ACTION_RFID) {
+                val tag = intent.getStringExtra(ScannerApp.EXTRA_SCAN_DATA) ?: return
+                // The Settings shortcut tag is handled app-wide; it is never an operator badge.
+                if (tag.isNotBlank() && tag != ScannerApp.SETTINGS_RFID) attemptBadgeLogin(tag)
             }
         }
     }
@@ -57,7 +66,15 @@ class LoginActivity : AppCompatActivity() {
         forceLightStatusBarIcons()
 
         authClient = AuthClient(this)
+        setupOperatorDropdown()
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
+        MqttManager.getInstance(this).addConnectionListener(connectionListener)
+
+        // Signed out by expiry or a station rejection rather than by choice: say why, once.
+        OperatorSessionHolder.signedOutReason?.let {
+            showError(it)
+            OperatorSessionHolder.signedOutReason = null
+        }
 
         binding.btnLogin.setOnClickListener { submitCredentials() }
         binding.etPassword.setOnEditorActionListener { _, actionId, _ ->
@@ -82,7 +99,7 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        val filter = IntentFilter("com.rscja.scanner.action.scanner.RFID")
+        val filter = IntentFilter(ScannerApp.ACTION_RFID)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(badgeReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {
@@ -93,6 +110,39 @@ class LoginActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         unregisterReceiver(badgeReceiver)
+    }
+
+    private fun setupOperatorDropdown() {
+        operatorAdapter = ArrayAdapter(this, R.layout.item_operator_dropdown, OperatorDirectory.cached.toMutableList())
+        binding.etUsername.setAdapter(operatorAdapter)
+        // The row shows "Display Name (username)"; the field must hold just the username.
+        binding.etUsername.setOnItemClickListener { _, _, position, _ ->
+            operatorAdapter.getItem(position)?.let { binding.etUsername.setText(it.username, false) }
+            binding.etPassword.requestFocus()
+        }
+        binding.etUsername.setOnClickListener {
+            if (operatorAdapter.count > 0 && binding.etUsername.text.isNullOrEmpty()) {
+                binding.etUsername.showDropDown()
+            }
+        }
+    }
+
+    /**
+     * Asks the station for its operator list. On timeout or rejection the cached list stays in
+     * place and typing a username still works — the dropdown is a convenience, not a gate.
+     */
+    private fun loadOperatorList() {
+        if (loggedIn || isFinishing) return
+        authClient.requestOperatorList { result ->
+            if (isFinishing || isDestroyed) return@requestOperatorList
+            result
+                .onSuccess { entries ->
+                    operatorAdapter.clear()
+                    operatorAdapter.addAll(entries)
+                    operatorAdapter.notifyDataSetChanged()
+                }
+                .onFailure { e -> android.util.Log.w("LoginActivity", "Operator list unavailable: ${e.message}") }
+        }
     }
 
     private fun submitCredentials() {
@@ -163,6 +213,7 @@ class LoginActivity : AppCompatActivity() {
         super.onDestroy()
         if (::authClient.isInitialized) {
             MqttManager.getInstance(this).removeConnectionStatusListener(connectionStatusListener)
+            MqttManager.getInstance(this).removeConnectionListener(connectionListener)
         }
     }
 }

@@ -140,6 +140,8 @@ class SettingsActivity : AppCompatActivity() {
                 binding.pillBroker.setAppearance(blue, "Reconnecting")
             ConnectionStatus.OFFLINE ->
                 binding.pillBroker.setAppearance(red, "Disconnected")
+            ConnectionStatus.BROKER_REJECTED ->
+                binding.pillBroker.setAppearance(red, "Credential rejected")
         }
 
         // With the broker down, the retained presence value is stale rather than false — saying

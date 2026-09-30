@@ -80,22 +80,30 @@
                     android:orientation="vertical"
                     android:padding="24dp">
 
+                    <!-- Editable dropdown: filled from the station's operator_list, but a typed
+                         username still works when the list is empty or unavailable. -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilUsername"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="@string/hint_username"
                         app:boxStrokeColor="@color/outline_dark"
+                        app:endIconTint="@color/text_secondary_dark"
                         app:hintTextColor="@color/text_secondary_dark">
 
-                        <com.google.android.material.textfield.TextInputEditText
+                        <com.google.android.material.textfield.MaterialAutoCompleteTextView
                             android:id="@+id/etUsername"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:completionThreshold="1"
+                            android:dropDownHeight="wrap_content"
                             android:imeOptions="actionNext"
                             android:inputType="text"
                             android:maxLines="1"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp"
+                            android:popupBackground="@color/card_background_alt"
                             android:textColor="@color/text_primary_dark" />
                     </com.google.android.material.textfield.TextInputLayout>
 
