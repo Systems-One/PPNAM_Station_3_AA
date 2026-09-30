@@ -100,9 +100,212 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Empty state: Station 3 defines no workflow tabs yet, and allowedTabs gating is
-         fail-closed — so instead of Station 1's tile grid there is one explanatory card. -->
+    <!-- Master Batch source selection (desktop MQTT_CONTRACT.md §7), shown only when the
+         login's allowedTabs includes master_batch. -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollMasterBatch"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        android:fillViewport="true"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/cardHeader"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="@color/card_background"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/border_primary"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/master_batch_title"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/master_batch_instruction"
+                        android:textColor="@color/text_muted"
+                        android:textSize="15sp" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilScanValue"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:hint="@string/hint_scan_value"
+                        app:boxStrokeColor="@color/outline_dark"
+                        app:hintTextColor="@color/text_secondary_dark">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etScanValue"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:imeOptions="actionGo"
+                            android:inputType="text"
+                            android:maxLength="500"
+                            android:maxLines="1"
+                            android:textColor="@color/text_primary_dark" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSelectSource"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/btn_select_source"
+                        app:backgroundTint="@color/primary_action"
+                        app:cornerRadius="14dp" />
+
+                    <!-- Pending / timeout / rejection feedback -->
+                    <LinearLayout
+                        android:id="@+id/layoutScanStatus"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:visibility="gone"
+                        tools:visibility="visible">
+
+                        <ProgressBar
+                            android:id="@+id/progressScan"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_marginEnd="10dp"
+                            android:indeterminateTint="@color/accent_action" />
+
+                        <TextView
+                            android:id="@+id/tvScanStatus"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:textColor="@color/text_primary"
+                            android:textSize="15sp"
+                            tools:text="Selecting source…" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnRetryScan"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="@string/btn_retry"
+                            android:textColor="@color/text_primary"
+                            android:visibility="gone"
+                            app:strokeColor="@color/border_primary" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- The selected source. Weights are kg. -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardSource"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="@color/light_green"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/success"
+                app:strokeWidth="1dp"
+                tools:visibility="visible">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_source_selected"
+                        android:textAllCaps="true"
+                        android:textColor="@color/success"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvSourceProduct"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:textColor="@color/text_primary"
+                        android:textSize="28sp"
+                        android:textStyle="bold"
+                        tools:text="1500000001" />
+
+                    <TextView
+                        android:id="@+id/tvSourceDescription"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        tools:text="MASTERBATCH BLACK" />
+
+                    <TextView
+                        android:id="@+id/tvSourceWeight"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:textColor="@color/text_primary"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        tools:text="24.5 kg available" />
+
+                    <TextView
+                        android:id="@+id/tvSourceDetails"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:lineSpacingExtra="2dp"
+                        android:textColor="@color/text_muted"
+                        android:textSize="14sp"
+                        tools:text="Pallet PALLET-001 · Batch BATCH-001" />
+
+                    <TextView
+                        android:id="@+id/tvSourceInstruction"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp"
+                        tools:text="Source selected. Enter the pack weight in kg on Station 3 using the same signed-in user." />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- Empty state: shown when the login's allowedTabs enables no Station 3 workflow
+         (gating is fail-closed). -->
     <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardNoWorkflows"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"

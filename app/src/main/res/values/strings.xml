@@ -3,9 +3,24 @@
     <string name="app_name">Station 3</string>
     <string name="error_fill_all_fields">Please fill in all fields</string>
 
-    <!-- Home (no workflows contracted for Station 3 yet — allowedTabs gating is fail-closed) -->
-    <string name="no_workflows_title">No workflows yet</string>
-    <string name="no_workflows_message">No workflows are enabled for this station yet.</string>
+    <!-- Home: empty state when allowedTabs enables nothing (gating is fail-closed) -->
+    <string name="no_workflows_title">No workflows enabled</string>
+    <string name="no_workflows_message">Your account has no scanner workflows at Station 3. Ask a manager to check your role.</string>
+
+    <!-- Master Batch source selection -->
+    <string name="master_batch_title">Master Batch — Select Source</string>
+    <string name="master_batch_instruction">Scan the source pallet barcode or RFID tag, then enter the pack weight on Station 3.</string>
+    <string name="hint_scan_value">Pallet barcode or tag</string>
+    <string name="btn_select_source">Select Source</string>
+    <string name="btn_retry">Retry</string>
+    <string name="label_source_selected">Source selected</string>
+    <string name="scan_pending">Selecting source…</string>
+    <string name="scan_timeout">Station 3 did not respond. Check the station and retry.</string>
+    <string name="scan_invalid">Scan a barcode or tag of up to 500 characters.</string>
+    <string name="scan_busy">Still waiting for the previous scan.</string>
+    <string name="scan_unavailable_broker">Not connected to the broker. Scanning resumes when it reconnects.</string>
+    <string name="scan_unavailable_station">Station 3 is offline. Scanning resumes when it comes back.</string>
+    <string name="scan_not_allowed">Your account cannot select source stock at Station 3.</string>
 
     <!-- Login / session -->
     <string name="title_log_in">Log In</string>

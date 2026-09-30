@@ -1,14 +1,17 @@
 package com.mitas.ppnam.station3aa
 
+import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * Station 3 defines no workflow tabs yet. When its workflows are contracted, their wire values
- * (as delivered in the login response's `allowedTabs`) get constants here, mirroring Station 1's
- * StationTab. Until then the fail-closed gating in [OperatorSession.canShow] simply has nothing
- * to enable — every operator sees no workflows.
+ * Station 3's workflow tabs as delivered in the login response's `allowedTabs`, mirroring
+ * Station 1's StationTab (desktop MQTT_CONTRACT.md §4). Gating fails closed: an operator whose
+ * login omits a tab never sees it.
  */
-object StationTab
+object StationTab {
+    /** Source pallet selection for Master Batch labelling. */
+    const val MASTER_BATCH = "master_batch"
+}
 
 /**
  * The logged-in operator, mirroring Station 2 AA's OperatorSession (data/session). Held in memory
@@ -24,7 +27,13 @@ data class OperatorSession(
     val allowedActions: List<String> = emptyList(),
     /** A UI display hint only. */
     val allowedTabs: List<String> = emptyList(),
+    val username: String = "",
+    /** From `sessionExpiresAtUtc`; null if the station omitted it or sent something unparseable. */
+    val expiresAt: Instant? = null,
 ) {
+    /** Past its expiry — the station would reject it, so sign in again without asking. */
+    fun isExpired(now: Instant = Instant.now()): Boolean = expiresAt?.let { !now.isBefore(it) } ?: false
+
     /**
      * Whether to OFFER [tab] in the UI. Presentation only — the station re-checks every
      * request server-side (ACTION_NOT_ALLOWED).
@@ -47,12 +56,22 @@ object OperatorSessionHolder {
 
     private val listeners = CopyOnWriteArrayList<(OperatorSession?) -> Unit>()
 
+    /**
+     * Why the last session ended when the operator didn't choose it (expiry, station rejection),
+     * for the login screen to show once. Null after a deliberate logout.
+     */
+    @Volatile
+    var signedOutReason: String? = null
+
     fun set(session: OperatorSession) {
+        signedOutReason = null
         this.session = session
         listeners.forEach { it(session) }
     }
 
-    fun clear() {
+    fun clear(reason: String? = null) {
+        if (session == null) return
+        signedOutReason = reason
         session = null
         listeners.forEach { it(null) }
     }

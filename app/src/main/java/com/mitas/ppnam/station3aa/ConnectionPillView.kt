@@ -59,6 +59,7 @@ class ConnectionPillView @JvmOverloads constructor(
             ConnectionStatus.RECONNECTING -> ContextCompat.getColor(context, R.color.pill_warning)
             ConnectionStatus.STATION_OFFLINE -> ContextCompat.getColor(context, R.color.pill_warning)
             ConnectionStatus.OFFLINE -> ContextCompat.getColor(context, R.color.pill_offline)
+            ConnectionStatus.BROKER_REJECTED -> ContextCompat.getColor(context, R.color.pill_offline)
         }
         // Same wording as Station 2's pill ("Station 2 offline"), with this station's number.
         val text = when (status) {
@@ -66,6 +67,7 @@ class ConnectionPillView @JvmOverloads constructor(
             ConnectionStatus.RECONNECTING -> "Reconnecting"
             ConnectionStatus.STATION_OFFLINE -> "Station 3 offline"
             ConnectionStatus.OFFLINE -> "Offline"
+            ConnectionStatus.BROKER_REJECTED -> "Broker login rejected"
         }
         setAppearance(color, text)
     }

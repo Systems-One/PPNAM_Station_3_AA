@@ -7,6 +7,7 @@ import android.util.Log
 import com.hivemq.client.mqtt.mqtt3.message.publish.Mqtt3Publish
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
+import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -18,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  *   req/scram_proof_requested   -> res/scram_proof_result
  *   req/login_requested         -> res/operator_context
  *   req/reader_logout_requested -> res/operator_context (fire-and-forget here)
+ *   req/operator_list_requested -> res/operator_list (pre-login dropdown, desktop contract §4.1)
  *
  * Every request carries the schema 4.1 envelope (Schema41). Responses are correlated on
  * inResponseToMessageId and branched on `accepted`/`errorCode` — free-text `reason` is shown
@@ -117,6 +119,20 @@ class AuthClient(context: Context) {
         }
     }
 
+    /**
+     * Fetches the login dropdown. No credentials and no operatorSessionId — this runs before
+     * login. A fresh messageId each call, so the station returns a current list rather than a
+     * stored replay. On success the list also becomes [OperatorDirectory.cached].
+     */
+    fun requestOperatorList(onResult: (Result<List<OperatorEntry>>) -> Unit) {
+        val payload = Schema41.envelope(Schema41.newMessageId("operator-list"), deviceId())
+        request("operator_list_requested", "operator_list", payload) { result ->
+            onResult(result.map { response ->
+                OperatorDirectory.parse(response).also { OperatorDirectory.update(it) }
+            })
+        }
+    }
+
     fun loginWithBadge(badgeTag: String, onResult: (Result<OperatorSession>) -> Unit) {
         val payload = Schema41.envelope(Schema41.newMessageId("badge-login"), deviceId()).apply {
             put("badgeTag", badgeTag)
@@ -156,6 +172,8 @@ class AuthClient(context: Context) {
                     role = response.optString("role", ""),
                     allowedActions = response.optJSONArray("allowedActions").toStringList(),
                     allowedTabs = response.optJSONArray("allowedTabs").toStringList(),
+                    username = response.optString("username", ""),
+                    expiresAt = parseInstant(response.optString("sessionExpiresAtUtc", "")),
                 )
                 OperatorSessionHolder.set(session)
                 Result.success(session)
@@ -233,6 +251,9 @@ class AuthClient(context: Context) {
     }
 
     private fun failure(message: String): Result<Nothing> = Result.failure(Exception(message))
+
+    private fun parseInstant(value: String): Instant? =
+        if (value.isBlank()) null else runCatching { Instant.parse(value) }.getOrNull()
 }
 
 private fun org.json.JSONArray?.toStringList(): List<String> {

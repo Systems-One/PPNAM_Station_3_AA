@@ -4,9 +4,9 @@ import android.content.Context
 import android.util.Log
 import com.hivemq.client.mqtt.MqttClient
 import com.hivemq.client.mqtt.MqttClientState
-import com.hivemq.client.mqtt.MqttGlobalPublishFilter
 import com.hivemq.client.mqtt.datatypes.MqttQos
 import com.hivemq.client.mqtt.lifecycle.MqttClientDisconnectedContext
+import com.hivemq.client.mqtt.lifecycle.MqttDisconnectSource
 import com.hivemq.client.mqtt.lifecycle.MqttClientDisconnectedListener
 import com.hivemq.client.mqtt.mqtt3.Mqtt3AsyncClient
 import com.hivemq.client.mqtt.mqtt3.message.publish.Mqtt3Publish
@@ -40,16 +40,42 @@ class MqttManager private constructor(context: Context) {
 
     private val settingsRepository = SettingsRepository(appContext)
 
+    /**
+     * True once the broker refused this handheld's credential (CONNACK NOT_AUTHORIZED / bad
+     * username or password). Retrying can't help, so reconnects stop until Settings are saved.
+     */
+    @Volatile
+    var brokerRejectedCredential = false
+        private set
+
+    /** Consecutive failed attempts, for [ReconnectPolicy.delayMs]. Reset on success. */
+    private var reconnectAttempt = 0
+    private val reconnectRunnable = Runnable { if (!isConnected()) connect() }
+
+    // HiveMQ calls this for a failed CONNECT as well as a dropped connection, so it is the ONE
+    // place reconnects are scheduled — the connect callback must not schedule a second one.
     private val disconnectedListener = MqttClientDisconnectedListener { context: MqttClientDisconnectedContext ->
         Log.w("MqttManager", "Disconnected from broker: ${context.cause.message}")
+        isConnecting.set(false)
         notifyListeners(false)
-        
-        // Auto-reconnect logic
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            if (!isConnected()) {
-                connect()
+
+        when {
+            // Our own disconnect() — the caller decides whether to connect again.
+            context.source == MqttDisconnectSource.USER -> Unit
+            ReconnectPolicy.isCredentialRejection(context.cause) -> {
+                Log.e("MqttManager", "Broker rejected this handheld's credential; not retrying until Settings change")
+                brokerRejectedCredential = true
+                notifyConnectionStatus()
             }
-        }, 5000)
+            wantsConnection.get() -> scheduleReconnect()
+        }
+    }
+
+    private fun scheduleReconnect() {
+        val delay = ReconnectPolicy.delayMs(reconnectAttempt++)
+        Log.i("MqttManager", "Reconnecting in ${delay}ms (attempt $reconnectAttempt)")
+        statusHandler.removeCallbacks(reconnectRunnable)
+        statusHandler.postDelayed(reconnectRunnable, delay)
     }
 
     companion object {
@@ -89,6 +115,7 @@ class MqttManager private constructor(context: Context) {
      * has no way to measure).
      */
     private fun resolveStatus(): ConnectionStatus = when {
+        brokerRejectedCredential -> ConnectionStatus.BROKER_REJECTED
         !wantsConnection.get() -> ConnectionStatus.OFFLINE
         isConnected() && !isStationOnline -> ConnectionStatus.STATION_OFFLINE
         isConnected() && isStationOnline -> ConnectionStatus.CONNECTED
@@ -112,6 +139,9 @@ class MqttManager private constructor(context: Context) {
 
     fun connect(force: Boolean = false) {
         if (!force && (isConnected() || isConnecting.get())) return
+        // Any explicit connect (app start, Settings saved) is a fresh try with fresh settings.
+        statusHandler.removeCallbacks(reconnectRunnable)
+        brokerRejectedCredential = false
 
         if (force) {
             disconnect { connect(force = false) }
@@ -166,33 +196,41 @@ class MqttManager private constructor(context: Context) {
                 isConnecting.set(false)
                 if (throwable == null) {
                     Log.i("MqttManager", "Connected")
+                    reconnectAttempt = 0
 
                     // Explicitly publish online status to clear any stale LWT
                     publish(presenceTopic, "online", true, MqttQos.EXACTLY_ONCE)
 
-                    // One subscription captures all of this station's traffic, presence included
-                    subscribeInternal(MqttTopics.stationWildcard())
-                    
+                    // Exactly the contract's scanner subscriptions (desktop MQTT_CONTRACT.md §2):
+                    // station presence, own presence (for self-heal) and ALL own responses.
+                    // Narrow enough for per-device broker ACLs, unlike PPNAM/station_3/#.
+                    val deviceId = DeviceIdentity.deviceId(appContext)
+                    subscribeInternal(MqttTopics.stationPresence(), MqttQos.EXACTLY_ONCE)
+                    subscribeInternal(MqttTopics.devicePresence(deviceId), MqttQos.EXACTLY_ONCE)
+                    subscribeInternal(MqttTopics.deviceResponses(deviceId), MqttQos.AT_LEAST_ONCE)
+
                     notifyListeners(true)
                 } else {
+                    // Rescheduling happens in disconnectedListener, which HiveMQ also invokes
+                    // for a failed CONNECT.
                     Log.e("MqttManager", "Connection failed", throwable)
-                    notifyListeners(false)
-                    // Retry after delay
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        connect()
-                    }, 5000)
                 }
             }
-            
-        client?.toAsync()?.publishes(MqttGlobalPublishFilter.ALL) { publish ->
-            // Routing is handled in subscribeInternal callback
-        }
     }
 
-    private fun subscribeInternal(topicFilter: String) {
+    /**
+     * Re-publishes this scanner's retained `online` presence. Called every 30 s while the login
+     * screen is idle (§3) so the desktop doesn't show a connected-but-unused scanner as stale.
+     */
+    fun refreshPresence() {
+        if (!isConnected() || !wantsConnection.get()) return
+        publish(MqttTopics.devicePresence(DeviceIdentity.deviceId(appContext)), "online", true, MqttQos.EXACTLY_ONCE)
+    }
+
+    private fun subscribeInternal(topicFilter: String, qos: MqttQos) {
         client?.subscribeWith()
             ?.topicFilter(topicFilter)
-            ?.qos(MqttQos.AT_LEAST_ONCE)
+            ?.qos(qos)
             ?.callback { publish ->
                 val topic = publish.topic.toString()
                 
@@ -320,6 +358,7 @@ class MqttManager private constructor(context: Context) {
 
     fun disconnect(onComplete: () -> Unit = {}) {
         wantsConnection.set(false)
+        statusHandler.removeCallbacks(reconnectRunnable)
         notifyConnectionStatus()
         if (!isConnected()) {
             onComplete()

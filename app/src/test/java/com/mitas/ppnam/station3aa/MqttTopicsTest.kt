@@ -48,8 +48,11 @@ class MqttTopicsTest {
     }
 
     @Test
-    fun `station wildcard captures all station traffic`() {
-        assertEquals("PPNAM/station_3/#", MqttTopics.stationWildcard())
+    fun `device responses cover every res suffix for this scanner only`() {
+        assertEquals(
+            "PPNAM/station_3/scanner_5c64df8d86a8/res/+",
+            MqttTopics.deviceResponses("scanner_5c64df8d86a8")
+        )
     }
 
     @Test

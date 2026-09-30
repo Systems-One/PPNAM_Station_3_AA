@@ -45,8 +45,14 @@ object MqttTopics {
         return "$STATION_BASE/res/$suffix"
     }
 
-    /** One subscription capturing all of this station's traffic, presence included. */
-    fun stationWildcard(): String = "$STATION_BASE/#"
+    /**
+     * Every response addressed to this scanner. The contract requires subscribing to ALL of
+     * `res/+`, never only the success suffixes, so rejections are always seen.
+     */
+    fun deviceResponses(deviceId: String): String {
+        validateSegment(deviceId, "deviceId")
+        return "$STATION_BASE/$deviceId/res/+"
+    }
 
     // The contract forbids '/', '+' and '#' in a topic segment. A segment carrying one of these
     // would silently reshape the topic (or subscribe to a wildcard), so fail loudly instead.

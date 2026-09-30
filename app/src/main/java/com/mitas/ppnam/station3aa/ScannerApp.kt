@@ -12,7 +12,14 @@ import android.os.Bundle
 class ScannerApp : Application() {
 
     private var currentActivity: Activity? = null
-    private val SETTINGS_RFID = "E28011700000021B2F6E9827"
+
+    companion object {
+        /** RFID tag that opens Settings from anywhere — never treat it as a badge or source. */
+        const val SETTINGS_RFID = "E28011700000021B2F6E9827"
+        const val ACTION_RFID = "com.rscja.scanner.action.scanner.RFID"
+        const val ACTION_BARCODE = "com.scanner.broadcast"
+        const val EXTRA_SCAN_DATA = "data"
+    }
 
     private val rfidShortcutReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -55,6 +62,9 @@ class ScannerApp : Application() {
         // Initialize and connect MQTT globally
         val mqtt = MqttManager.getInstance(this)
         mqtt.connect()
+
+        // Heartbeat while signed in, presence refresh on the login screen (desktop contract §3).
+        SessionKeeper(this).start()
 
         mqtt.addStationStatusListener { online ->
             if (!online) {
