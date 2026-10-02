@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -15,11 +16,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SysOneScanner">
 
+        <!-- Every screen is portrait-locked: the C72 has auto-rotate on and every landscape
+             layout was worse in the 2026-10 audit (fields hidden, state lost, dialogs under
+             the keyboard). A handheld scanner gains nothing from landscape. -->
         <activity
             android:name=".LoginActivity"
             android:exported="true"
             android:label="Log In"
-            android:windowSoftInputMode="stateHidden|adjustResize">
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="stateHidden|adjustResize"
+            tools:ignore="LockedOrientationActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -29,12 +35,19 @@
         <activity
             android:name=".MainActivity"
             android:exported="false"
-            android:windowSoftInputMode="stateHidden|adjustResize" />
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="stateHidden|adjustResize"
+            tools:ignore="LockedOrientationActivity" />
 
+        <!-- adjustResize (not the adjustPan default): the content is a NestedScrollView, so the
+             window must shrink for the keyboard instead of panning the toolbar off-screen. -->
         <activity
             android:name=".SettingsActivity"
             android:exported="false"
-            android:theme="@style/Theme.SysOneScanner" />
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.SysOneScanner"
+            android:windowSoftInputMode="stateHidden|adjustResize"
+            tools:ignore="LockedOrientationActivity" />
 
     </application>
 
