@@ -2,6 +2,8 @@ package com.mitas.ppnam.station3aa
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.MenuItem
 import android.view.View
 import androidx.activity.addCallback
@@ -21,13 +23,12 @@ class SettingsActivity : AppCompatActivity() {
 
     // Ported from Station 2's SettingsViewModel so both apps' supervisor lock behave identically.
     private val correctPin = "079545"
-    private var failedPinAttempts = 0
-    private var lockedOutUntilMs = 0L
+    private lateinit var settingsRepository: SettingsRepository
+    private lateinit var pinGate: PinGate
 
-    private companion object {
-        const val MAX_PIN_ATTEMPTS = 5
-        const val PIN_LOCKOUT_MS = 30_000L
-    }
+    private val ticker = Handler(Looper.getMainLooper())
+    private val lockoutTick = Runnable { renderLockout() }
+    private var lockoutShowing = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,8 +43,11 @@ class SettingsActivity : AppCompatActivity() {
         binding.tvDeviceId.text = DeviceIdentity.deviceId(this)
         setupSessionSection()
 
-        val settingsRepository = SettingsRepository(this)
+        settingsRepository = SettingsRepository(this)
         val current = settingsRepository.brokerSettings()
+        val (failedAttempts, lockedOutUntilMs) = settingsRepository.pinGateState()
+        pinGate = PinGate(correctPin, failedAttempts, lockedOutUntilMs)
+        renderLockout()
 
         binding.etBrokerHost.setText(current.host)
         binding.etBrokerPort.setText(current.port.toString())
@@ -178,48 +182,49 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun submitPin() {
-        val now = System.currentTimeMillis()
-        if (now < lockedOutUntilMs) {
-            val remainingSec = (lockedOutUntilMs - now + 999) / 1_000
-            showLockoutMessage("Too many attempts. Try again in ${remainingSec}s.")
-            binding.etPin.setText("")
-            return
-        }
-
-        if (binding.etPin.text.toString() == correctPin) {
-            failedPinAttempts = 0
-            hidePinMessages()
-            binding.cardPinLock.visibility = View.GONE
-            binding.groupSettingsFields.visibility = View.VISIBLE
-        } else {
-            binding.etPin.setText("")
-            failedPinAttempts++
-            if (failedPinAttempts >= MAX_PIN_ATTEMPTS) {
-                lockedOutUntilMs = now + PIN_LOCKOUT_MS
-                failedPinAttempts = 0
-                showLockoutMessage("Too many attempts. Try again in ${PIN_LOCKOUT_MS / 1_000}s.")
-            } else {
-                val left = MAX_PIN_ATTEMPTS - failedPinAttempts
-                showErrorMessage("Incorrect PIN. $left attempt${if (left == 1) "" else "s"} left before lockout.")
+        val outcome = pinGate.submit(binding.etPin.text?.toString().orEmpty(), System.currentTimeMillis())
+        settingsRepository.savePinGateState(pinGate.failedAttempts, pinGate.lockedOutUntilMs)
+        when (outcome) {
+            PinGate.Outcome.Unlocked -> {
+                binding.tilPin.error = null
+                binding.etPin.setText("")
+                hideKeyboard()
+                binding.cardPinLock.visibility = View.GONE
+                binding.groupSettingsFields.visibility = View.VISIBLE
+            }
+            PinGate.Outcome.Blank -> binding.tilPin.error = getString(R.string.pin_error_blank)
+            is PinGate.Outcome.Incorrect -> {
+                binding.etPin.setText("")
+                binding.tilPin.error = resources.getQuantityString(
+                    R.plurals.pin_error_incorrect, outcome.attemptsLeft, outcome.attemptsLeft,
+                )
+            }
+            is PinGate.Outcome.LockedOut -> {
+                binding.etPin.setText("")
+                renderLockout()
             }
         }
     }
 
-    private fun showErrorMessage(message: String) {
-        binding.tvPinError.text = message
-        binding.tvPinError.visibility = View.VISIBLE
-        binding.tvPinLockout.visibility = View.GONE
-    }
-
-    private fun showLockoutMessage(message: String) {
-        binding.tvPinLockout.text = message
-        binding.tvPinLockout.visibility = View.VISIBLE
-        binding.tvPinError.visibility = View.GONE
-    }
-
-    private fun hidePinMessages() {
-        binding.tvPinError.visibility = View.GONE
-        binding.tvPinLockout.visibility = View.GONE
+    /**
+     * Shows the live countdown while locked out, disabling the field and Unlock, and re-enables
+     * them the second the lockout ends. Reschedules itself every second while locked.
+     */
+    private fun renderLockout() {
+        ticker.removeCallbacks(lockoutTick)
+        val remainingMs = pinGate.remainingLockoutMs(System.currentTimeMillis())
+        if (remainingMs > 0) {
+            lockoutShowing = true
+            binding.etPin.isEnabled = false
+            binding.btnUnlock.isEnabled = false
+            binding.tilPin.error = getString(R.string.pin_error_lockout, (remainingMs + 999) / 1_000)
+            ticker.postDelayed(lockoutTick, 1_000)
+        } else if (lockoutShowing) {
+            lockoutShowing = false
+            binding.etPin.isEnabled = true
+            binding.btnUnlock.isEnabled = true
+            binding.tilPin.error = null
+        }
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -232,6 +237,7 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        ticker.removeCallbacks(lockoutTick)
         MqttManager.getInstance(this).removeConnectionStatusListener(connectionStatusListener)
     }
 }

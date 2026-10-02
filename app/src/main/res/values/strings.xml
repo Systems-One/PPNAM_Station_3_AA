@@ -54,6 +54,14 @@
     <string name="label_device_id">Device ID</string>
     <string name="label_signed_in_as">Signed in as</string>
 
+    <!-- Supervisor PIN gate -->
+    <string name="pin_error_blank">Enter the supervisor PIN.</string>
+    <plurals name="pin_error_incorrect">
+        <item quantity="one">Incorrect PIN. %1$d attempt left before lockout.</item>
+        <item quantity="other">Incorrect PIN. %1$d attempts left before lockout.</item>
+    </plurals>
+    <string name="pin_error_lockout">Too many attempts. Try again in %1$ds.</string>
+
     <string name="station_offline_title">MAIN STATION OFFLINE</string>
     <string name="station_offline_message">Please wait for the main station to reconnect...</string>
 </resources>

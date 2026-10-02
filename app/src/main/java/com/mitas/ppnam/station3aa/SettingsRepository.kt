@@ -27,6 +27,8 @@ class SettingsRepository(context: Context) {
         const val MQTT_USERNAME = "mqtt_username"
         /** Obsolete since the app became Station 3 only; removed on the next save. */
         const val LEGACY_STATION_INT = "station_int"
+        const val PIN_FAILED_ATTEMPTS = "pin_failed_attempts"
+        const val PIN_LOCKED_UNTIL_MS = "pin_locked_until_ms"
     }
 
     fun brokerSettings(): BrokerSettings {
@@ -65,6 +67,17 @@ class SettingsRepository(context: Context) {
 
     /** Whether this handheld has been provisioned with its own broker credential. */
     fun isProvisioned(): Boolean = brokerSettings().hasBrokerCredential
+
+    /** Supervisor PIN gate counters, so a lockout survives Back + reopen and a restart. */
+    fun pinGateState(): Pair<Int, Long> =
+        prefs.getInt(Keys.PIN_FAILED_ATTEMPTS, 0) to prefs.getLong(Keys.PIN_LOCKED_UNTIL_MS, 0L)
+
+    fun savePinGateState(failedAttempts: Int, lockedOutUntilMs: Long) {
+        prefs.edit()
+            .putInt(Keys.PIN_FAILED_ATTEMPTS, failedAttempts)
+            .putLong(Keys.PIN_LOCKED_UNTIL_MS, lockedOutUntilMs)
+            .apply()
+    }
 
     /** Wipes the broker credential. For decommissioning a handheld. */
     fun clearCredential() {

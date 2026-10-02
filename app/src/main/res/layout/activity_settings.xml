@@ -223,9 +223,12 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:gravity="center_vertical"
+                        android:gravity="top"
                         android:orientation="horizontal">
 
+                        <!-- The error renders inside the TextInputLayout, directly under the box,
+                             so with adjustResize it is brought into view with the field instead of
+                             landing under the PIN pad (audit S3-06). -->
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilPin"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
@@ -234,6 +237,9 @@
                             android:layout_weight="1"
                             android:hint="PIN"
                             app:boxStrokeColor="@color/outline_dark"
+                            app:boxStrokeErrorColor="@color/danger"
+                            app:errorEnabled="true"
+                            app:errorTextColor="@color/danger"
                             app:hintTextColor="@color/text_secondary_dark">
 
                             <com.google.android.material.textfield.TextInputEditText
@@ -254,26 +260,6 @@
                             android:layout_marginStart="12dp"
                             android:text="Unlock" />
                     </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/tvPinError"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:textColor="@color/danger"
-                        android:textSize="13sp"
-                        android:visibility="gone"
-                        tools:visibility="visible"
-                        tools:text="Incorrect PIN. 4 attempts left before lockout." />
-
-                    <TextView
-                        android:id="@+id/tvPinLockout"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:textColor="@color/danger"
-                        android:textSize="13sp"
-                        android:visibility="gone" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
