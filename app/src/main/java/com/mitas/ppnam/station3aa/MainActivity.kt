@@ -34,6 +34,18 @@ class MainActivity : AppCompatActivity() {
     private var scanForbidden = false
     private var lastScanValue: String? = null
     private val kgFormat = DecimalFormat("#,##0.###")
+    private var statusIsError = false
+
+    private companion object {
+        const val STATE_LAST_SCAN = "last_scan_value"
+        const val STATE_STATUS_VISIBLE = "status_visible"
+        const val STATE_STATUS_TEXT = "status_text"
+        const val STATE_STATUS_RETRY = "status_retry"
+        const val STATE_STATUS_ERROR = "status_error"
+        const val STATE_SOURCE_VISIBLE = "source_visible"
+        const val STATE_SOURCE_DESCRIPTION_VISIBLE = "source_description_visible"
+        const val STATE_SOURCE_INSTRUCTION_VISIBLE = "source_instruction_visible"
+    }
 
     private val connectionStatusListener: (ConnectionStatus) -> Unit = { status ->
         runOnUiThread {
@@ -103,6 +115,7 @@ class MainActivity : AppCompatActivity() {
         workflow = WorkflowClient.getInstance(this)
         setupHome()
         setupMasterBatch()
+        savedInstanceState?.let { restoreScanState(it) }
 
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
         MqttManager.getInstance(this).addStationStatusListener(stationStatusListener)
@@ -225,11 +238,46 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showScanStatus(message: String, pending: Boolean, retry: Boolean, error: Boolean = false) {
+        statusIsError = error
         binding.layoutScanStatus.visibility = View.VISIBLE
         binding.progressScan.visibility = if (pending) View.VISIBLE else View.GONE
         binding.tvScanStatus.text = message
         binding.tvScanStatus.setTextColor(getColor(if (error) R.color.danger else R.color.text_primary))
         binding.btnRetryScan.visibility = if (retry && lastScanValue != null) View.VISIBLE else View.GONE
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        if (!::binding.isInitialized) return
+        outState.putString(STATE_LAST_SCAN, lastScanValue)
+        outState.putBoolean(STATE_STATUS_VISIBLE, binding.layoutScanStatus.visibility == View.VISIBLE)
+        outState.putString(STATE_STATUS_TEXT, binding.tvScanStatus.text?.toString())
+        outState.putBoolean(STATE_STATUS_RETRY, binding.btnRetryScan.visibility == View.VISIBLE)
+        outState.putBoolean(STATE_STATUS_ERROR, statusIsError)
+        outState.putBoolean(STATE_SOURCE_VISIBLE, binding.cardSource.visibility == View.VISIBLE)
+        outState.putBoolean(STATE_SOURCE_DESCRIPTION_VISIBLE, binding.tvSourceDescription.visibility == View.VISIBLE)
+        outState.putBoolean(STATE_SOURCE_INSTRUCTION_VISIBLE, binding.tvSourceInstruction.visibility == View.VISIBLE)
+    }
+
+    /** Status text and the selected-source card are not View state; restore them by hand. */
+    private fun restoreScanState(state: Bundle) {
+        lastScanValue = state.getString(STATE_LAST_SCAN)
+        if (state.getBoolean(STATE_SOURCE_VISIBLE)) {
+            binding.cardSource.visibility = View.VISIBLE
+            binding.tvSourceDescription.visibility =
+                if (state.getBoolean(STATE_SOURCE_DESCRIPTION_VISIBLE)) View.VISIBLE else View.GONE
+            binding.tvSourceInstruction.visibility =
+                if (state.getBoolean(STATE_SOURCE_INSTRUCTION_VISIBLE)) View.VISIBLE else View.GONE
+        }
+        val text = state.getString(STATE_STATUS_TEXT).orEmpty()
+        if (state.getBoolean(STATE_STATUS_VISIBLE) && text.isNotBlank()) {
+            showScanStatus(
+                text,
+                pending = workflow.isScanPending,
+                retry = state.getBoolean(STATE_STATUS_RETRY),
+                error = state.getBoolean(STATE_STATUS_ERROR),
+            )
+        }
     }
 
     /** New workflow requests are disabled while the broker or the station is unavailable (§3). */
