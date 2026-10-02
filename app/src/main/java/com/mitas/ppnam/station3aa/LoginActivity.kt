@@ -178,8 +178,17 @@ class LoginActivity : AppCompatActivity() {
             }
             .onFailure { e ->
                 setLoggingIn(false)
-                showError(e.message ?: "Login failed")
+                android.util.Log.w("LoginActivity", "Login failed: ${e.message}")
+                showError(getString(loginErrorText(LoginErrorMessages.kindFor(e))))
             }
+    }
+
+    private fun loginErrorText(kind: LoginErrorKind): Int = when (kind) {
+        LoginErrorKind.INVALID_CREDENTIALS -> R.string.login_error_invalid_credentials
+        LoginErrorKind.BADGE_UNKNOWN -> R.string.login_error_badge_unknown
+        LoginErrorKind.TIMEOUT -> R.string.login_error_timeout
+        LoginErrorKind.NOT_CONNECTED -> R.string.login_error_not_connected
+        LoginErrorKind.STATION_ERROR -> R.string.login_error_station
     }
 
     private fun setLoggingIn(inFlight: Boolean) {

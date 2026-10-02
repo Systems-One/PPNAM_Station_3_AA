@@ -28,6 +28,12 @@
     <string name="hint_password">Password</string>
     <string name="btn_log_in">Log In</string>
     <string name="label_or_scan_badge">or scan your badge</string>
+    <!-- Login failures, chosen by LoginErrorMessages — never the station's raw reason text -->
+    <string name="login_error_invalid_credentials">Incorrect username or password.</string>
+    <string name="login_error_badge_unknown">Badge not recognised. Try again or log in with your username.</string>
+    <string name="login_error_timeout">Station 3 did not respond. Check the station and retry.</string>
+    <string name="login_error_not_connected">Not connected to the broker. Check Settings and retry.</string>
+    <string name="login_error_station">Station 3 could not complete the login. Try again.</string>
     <string name="exit_dialog_title">Close the app?</string>
     <string name="exit_dialog_message">You\'ll leave PPNAM Station 3 and return to the home screen.</string>
     <string name="exit_dialog_close">Close</string>

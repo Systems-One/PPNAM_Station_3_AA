@@ -53,7 +53,7 @@ class AuthClient(context: Context) {
             put("purpose", PURPOSE_LOGIN)
         }
 
-        request("scram_start_requested", "scram_challenge", startPayload) { startResult ->
+        request("scram_start_requested", "scram_challenge", startPayload, AuthStage.START) { startResult ->
             val challenge = startResult.getOrElse { return@request onResult(Result.failure(it)) }
 
             val challengeId = challenge.optString("challengeId", "")
@@ -101,7 +101,7 @@ class AuthClient(context: Context) {
                 put("purpose", PURPOSE_LOGIN)
             }
 
-            request("scram_proof_requested", "scram_proof_result", proofPayload) { proofResult ->
+            request("scram_proof_requested", "scram_proof_result", proofPayload, AuthStage.PROOF) { proofResult ->
                 val response = proofResult.getOrElse { return@request onResult(Result.failure(it)) }
 
                 // Mutual authentication. Without this check anything that can answer on the
@@ -126,7 +126,7 @@ class AuthClient(context: Context) {
      */
     fun requestOperatorList(onResult: (Result<List<OperatorEntry>>) -> Unit) {
         val payload = Schema41.envelope(Schema41.newMessageId("operator-list"), deviceId())
-        request("operator_list_requested", "operator_list", payload) { result ->
+        request("operator_list_requested", "operator_list", payload, AuthStage.OPERATOR_LIST) { result ->
             onResult(result.map { response ->
                 OperatorDirectory.parse(response).also { OperatorDirectory.update(it) }
             })
@@ -137,7 +137,7 @@ class AuthClient(context: Context) {
         val payload = Schema41.envelope(Schema41.newMessageId("badge-login"), deviceId()).apply {
             put("badgeTag", badgeTag)
         }
-        request("login_requested", "operator_context", payload) { result ->
+        request("login_requested", "operator_context", payload, AuthStage.BADGE) { result ->
             onResult(result.fold({ buildSession(it) }, { Result.failure(it) }))
         }
     }
@@ -191,10 +191,11 @@ class AuthClient(context: Context) {
         requestType: String,
         responseType: String,
         payload: JSONObject,
+        stage: AuthStage,
         onResult: (Result<JSONObject>) -> Unit,
     ) {
         if (!mqtt.isConnected()) {
-            mainHandler.post { onResult(failure("Not connected to the station")) }
+            mainHandler.post { onResult(failure("Not connected to the station", stage, LoginErrorMessages.CODE_NOT_CONNECTED)) }
             return
         }
 
@@ -216,7 +217,7 @@ class AuthClient(context: Context) {
             mainHandler.post { onResult(result) }
         }
 
-        timeoutRunnable = Runnable { finish(failure("Station did not respond")) }
+        timeoutRunnable = Runnable { finish(failure("Station did not respond", stage, LoginErrorMessages.CODE_TIMEOUT)) }
 
         // With correlation, a message that isn't ours (wrong device, wrong messageId, or
         // unparseable) is ignored rather than failing the request — the timeout covers silence.
@@ -231,13 +232,13 @@ class AuthClient(context: Context) {
         onResponse = { publish ->
             parseCorrelated(publish)?.let { json ->
                 if (Schema41.isAccepted(json)) finish(Result.success(json))
-                else finish(failure(Schema41.rejectionMessage(json)))
+                else finish(failure(Schema41.rejectionMessage(json), stage, json.optString("errorCode", "")))
             }
         }
 
         onRejected = { publish ->
             parseCorrelated(publish)?.let { json ->
-                finish(failure(Schema41.rejectionMessage(json)))
+                finish(failure(Schema41.rejectionMessage(json), stage, json.optString("errorCode", "")))
             }
         }
 
@@ -246,11 +247,12 @@ class AuthClient(context: Context) {
         mainHandler.postDelayed(timeoutRunnable, REQUEST_TIMEOUT_MS)
 
         mqtt.publish(MqttTopics.deviceRequest(device, requestType), payload.toString()) { throwable ->
-            if (throwable != null) finish(failure("Could not reach the station"))
+            if (throwable != null) finish(failure("Could not reach the station", stage, LoginErrorMessages.CODE_PUBLISH_FAILED))
         }
     }
 
-    private fun failure(message: String): Result<Nothing> = Result.failure(Exception(message))
+    private fun failure(message: String, stage: AuthStage = AuthStage.LOCAL, code: String = ""): Result<Nothing> =
+        Result.failure(AuthFailure(stage, code, message))
 
     private fun parseInstant(value: String): Instant? =
         if (value.isBlank()) null else runCatching { Instant.parse(value) }.getOrNull()
@@ -260,3 +262,12 @@ private fun org.json.JSONArray?.toStringList(): List<String> {
     if (this == null) return emptyList()
     return (0 until length()).mapNotNull { optString(it, "").takeIf { s -> s.isNotBlank() } }
 }
+
+/** Where in the login exchange a failure happened; the UI maps (stage, code) to wording. */
+enum class AuthStage { START, PROOF, BADGE, OPERATOR_LIST, LOCAL }
+
+/**
+ * A login failure with the station's machine-readable [code] (or one of LoginErrorMessages'
+ * local codes) and [stage]. [message] is the station's sanitized reason — logged, never shown.
+ */
+class AuthFailure(val stage: AuthStage, val code: String, message: String) : Exception(message)
