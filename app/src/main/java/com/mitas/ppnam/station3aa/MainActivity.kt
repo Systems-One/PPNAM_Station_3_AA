@@ -4,15 +4,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import com.mitas.ppnam.station3aa.databinding.ActivityMainBinding
 import java.text.DecimalFormat
 
@@ -95,17 +92,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding = ActivityMainBinding.inflate(layoutInflater)
-        enableEdgeToEdge()
         setContentView(binding.root)
         forceLightStatusBarIcons()
-
-        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN)
-
-        ViewCompat.setOnApplyWindowInsetsListener(binding.main) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        // No enableEdgeToEdge() here: with decorFitsSystemWindows=false the manifest's
+        // adjustResize is ignored and the IME inset was never applied, so "Select Source" sat
+        // under the keyboard (audit S3-01). Letting the decor fit the system windows means the
+        // window shrinks for the keyboard and scrollMasterBatch can scroll the button into view.
 
         workflow = WorkflowClient.getInstance(this)
         setupHome()
@@ -139,6 +131,15 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnSelectSource.applyPressScaleFeedback()
         binding.btnSelectSource.setOnClickListener { submitScan(binding.etScanValue.text?.toString()) }
+        // The field sits above the keyboard but the button does not; when the window resizes
+        // for the IME while the field has focus, bring the button into the visible area.
+        binding.scrollMasterBatch.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+            val heightChanged = (bottom - top) != (oldBottom - oldTop)
+            if (heightChanged && binding.etScanValue.hasFocus()) binding.btnSelectSource.post { revealSelectSource() }
+        }
+        binding.etScanValue.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) binding.btnSelectSource.postDelayed({ revealSelectSource() }, 300)
+        }
         binding.etScanValue.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_DONE) {
                 submitScan(binding.etScanValue.text?.toString())
@@ -149,6 +150,13 @@ class MainActivity : AppCompatActivity() {
         }
         binding.btnRetryScan.setOnClickListener { lastScanValue?.let { submitScan(it) } }
         updateScanAvailability()
+    }
+
+    /** Asks the enclosing NestedScrollView to scroll until the whole button is on screen. */
+    private fun revealSelectSource() {
+        val button = binding.btnSelectSource
+        if (button.width == 0) return
+        button.requestRectangleOnScreen(Rect(0, 0, button.width, button.height), false)
     }
 
     private fun submitScan(raw: String?) {
