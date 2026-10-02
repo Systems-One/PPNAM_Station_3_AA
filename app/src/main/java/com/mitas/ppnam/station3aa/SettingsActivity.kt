@@ -7,10 +7,10 @@ import android.os.Looper
 import android.view.MenuItem
 import android.view.View
 import androidx.activity.addCallback
-import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
 import com.mitas.ppnam.station3aa.databinding.ActivitySettingsBinding
 
-class SettingsActivity : AppCompatActivity() {
+class SettingsActivity : SessionActivity() {
 
     private lateinit var binding: ActivitySettingsBinding
 
@@ -18,6 +18,21 @@ class SettingsActivity : AppCompatActivity() {
         runOnUiThread {
             binding.connectionPill.setStatus(status)
             updateDiagnostics(status)
+        }
+    }
+
+    /**
+     * Session ended elsewhere (inactivity, expiry, station rejection) while Settings is in front:
+     * go to Login with the reason. Only a non-null -> null transition counts — Settings can be
+     * opened from the login screen with no session at all.
+     */
+    private var hadSession = false
+    private val sessionListener: (OperatorSession?) -> Unit = { session ->
+        runOnUiThread {
+            if (session == null && hadSession && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                goToLogin()
+            }
+            hadSession = session != null
         }
     }
 
@@ -38,6 +53,7 @@ class SettingsActivity : AppCompatActivity() {
 
         setupToolbar()
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
+        OperatorSessionHolder.addListener(sessionListener)
 
         binding.tvVersion.text = "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
         binding.tvDeviceId.text = DeviceIdentity.deviceId(this)
@@ -169,16 +185,20 @@ class SettingsActivity : AppCompatActivity() {
                 .setTitle(getString(R.string.logout_dialog_title))
                 .setMessage(getString(R.string.logout_dialog_message))
                 .setPositiveButton(getString(R.string.btn_log_out)) { _, _ ->
-                    AuthClient(this).logout {
-                        startActivity(Intent(this, LoginActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                        })
-                        finish()
-                    }
+                    // sessionListener navigates to Login once the session is cleared.
+                    AuthClient(this).logout()
                 }
                 .setNegativeButton(getString(R.string.btn_cancel), null)
                 .show()
         }
+    }
+
+    private fun goToLogin() {
+        if (isFinishing) return
+        startActivity(Intent(this, LoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        })
+        finish()
     }
 
     private fun submitPin() {
@@ -238,6 +258,7 @@ class SettingsActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         ticker.removeCallbacks(lockoutTick)
+        OperatorSessionHolder.removeListener(sessionListener)
         MqttManager.getInstance(this).removeConnectionStatusListener(connectionStatusListener)
     }
 }

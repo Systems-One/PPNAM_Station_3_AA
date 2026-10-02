@@ -29,6 +29,7 @@ class SettingsRepository(context: Context) {
         const val LEGACY_STATION_INT = "station_int"
         const val PIN_FAILED_ATTEMPTS = "pin_failed_attempts"
         const val PIN_LOCKED_UNTIL_MS = "pin_locked_until_ms"
+        const val AUTO_LOGOUT_MINUTES = "auto_logout_minutes"
     }
 
     fun brokerSettings(): BrokerSettings {
@@ -77,6 +78,14 @@ class SettingsRepository(context: Context) {
             .putInt(Keys.PIN_FAILED_ATTEMPTS, failedAttempts)
             .putLong(Keys.PIN_LOCKED_UNTIL_MS, lockedOutUntilMs)
             .apply()
+    }
+
+    /** Inactivity auto sign-out, in minutes; 0 = never. */
+    fun autoLogoutMinutes(): Int =
+        prefs.getInt(Keys.AUTO_LOGOUT_MINUTES, AutoLogout.DEFAULT_MINUTES)
+
+    fun saveAutoLogoutMinutes(minutes: Int) {
+        prefs.edit().putInt(Keys.AUTO_LOGOUT_MINUTES, minutes.coerceIn(0, AutoLogout.MAX_MINUTES)).apply()
     }
 
     /** Wipes the broker credential. For decommissioning a handheld. */

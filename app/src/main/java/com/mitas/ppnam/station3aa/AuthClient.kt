@@ -142,7 +142,11 @@ class AuthClient(context: Context) {
         }
     }
 
-    fun logout(onComplete: () -> Unit = {}) {
+    /**
+     * [reason] is shown once on the login screen when the operator did not choose to sign out
+     * (inactivity); null for a deliberate logout.
+     */
+    fun logout(reason: String? = null, onComplete: () -> Unit = {}) {
         val payload = Schema41.envelope(Schema41.newMessageId("logout"), deviceId()).apply {
             put("operatorSessionId", OperatorSessionHolder.currentSessionIdOrEmpty())
         }
@@ -150,7 +154,7 @@ class AuthClient(context: Context) {
         mqtt.publish(topic, payload.toString()) { throwable ->
             if (throwable != null) Log.w(TAG, "Logout publish failed (session cleared anyway)", throwable)
         }
-        OperatorSessionHolder.clear()
+        OperatorSessionHolder.clear(reason)
         mainHandler.post { onComplete() }
     }
 

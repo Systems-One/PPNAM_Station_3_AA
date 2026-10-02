@@ -10,7 +10,6 @@ import android.os.Bundle
 import android.view.View
 import androidx.activity.addCallback
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import com.mitas.ppnam.station3aa.databinding.ActivityMainBinding
 import java.text.DecimalFormat
 
@@ -24,7 +23,7 @@ import java.text.DecimalFormat
  * available kg and the station's instruction. Pack weight, labels and printing stay on the
  * desktop — scanning never deducts stock.
  */
-class MainActivity : AppCompatActivity() {
+class MainActivity : SessionActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var workflow: WorkflowClient
@@ -85,6 +84,7 @@ class MainActivity : AppCompatActivity() {
             val action = intent?.action ?: return
             if (action != ScannerApp.ACTION_BARCODE && action != ScannerApp.ACTION_RFID) return
             val data = intent.getStringExtra(ScannerApp.EXTRA_SCAN_DATA) ?: return
+            SessionGuard.touch()
             // The Settings shortcut tag opens Settings app-wide; it is never a source.
             if (data.trim() == ScannerApp.SETTINGS_RFID) return
             runOnUiThread {

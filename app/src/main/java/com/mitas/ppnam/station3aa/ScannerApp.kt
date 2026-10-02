@@ -66,6 +66,9 @@ class ScannerApp : Application() {
         // Heartbeat while signed in, presence refresh on the login screen (desktop contract §3).
         SessionKeeper(this).start()
 
+        // Inactivity auto sign-out with a reason on the login screen (audit static-05).
+        SessionGuard.install(this)
+
         mqtt.addStationStatusListener { online ->
             if (!online) {
                 currentActivity?.let { checkStationStatus(it) }
