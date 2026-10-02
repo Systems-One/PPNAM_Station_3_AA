@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme, ported from Station 1. -->
-    <style name="Base.Theme.SysOneScanner" parent="Theme.Material3.DayNight.NoActionBar">
+    <!-- Always dark: a DayNight parent plus the (now deleted) empty values-night override
+         reverted every custom colour to M3 purple when the device was in dark mode. -->
+    <style name="Base.Theme.SysOneScanner" parent="Theme.Material3.Dark.NoActionBar">
         <!-- Base / Surface Colours -->
         <item name="android:windowBackground">@color/window_background</item>
         <item name="colorSurface">@color/card_background</item>
@@ -14,6 +16,9 @@
 
         <!-- Primary / Accent -->
         <item name="colorPrimary">@color/primary_action</item>
+        <!-- The Dark parent defaults colorOnPrimary to M3's deep purple, which is unreadable on
+             the crimson filled buttons (Unlock, Log In). -->
+        <item name="colorOnPrimary">@color/text_primary</item>
         <item name="colorSecondary">@color/accent_action</item>
         <item name="colorError">@color/danger</item>
 
