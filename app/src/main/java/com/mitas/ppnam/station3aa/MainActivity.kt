@@ -8,6 +8,8 @@ import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.view.View
+import androidx.activity.addCallback
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.mitas.ppnam.station3aa.databinding.ActivityMainBinding
 import java.text.DecimalFormat
@@ -105,6 +107,10 @@ class MainActivity : AppCompatActivity() {
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
         MqttManager.getInstance(this).addStationStatusListener(stationStatusListener)
         OperatorSessionHolder.addListener(sessionListener)
+
+        // Back on the home screen used to drop straight to the Android launcher with the operator
+        // still signed in (audit S3-02). Ask first, exactly like Login and Station 2's Home.
+        onBackPressedDispatcher.addCallback(this) { showExitDialog() }
     }
 
     private fun setupHome() {
@@ -255,13 +261,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showLogoutDialog() {
-        androidx.appcompat.app.AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
+        AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
             .setTitle(getString(R.string.logout_dialog_title))
             .setMessage(getString(R.string.logout_dialog_message))
             .setPositiveButton(getString(R.string.btn_log_out)) { _, _ ->
                 AuthClient(this).logout()
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    private fun showExitDialog() {
+        AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
+            .setTitle(getString(R.string.exit_dialog_title))
+            .setMessage(getString(R.string.exit_dialog_message))
+            .setPositiveButton(getString(R.string.exit_dialog_close)) { _, _ -> finishAffinity() }
+            .setNegativeButton(getString(R.string.exit_dialog_stay), null)
             .show()
     }
 
