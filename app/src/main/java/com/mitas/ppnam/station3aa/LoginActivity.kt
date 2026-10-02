@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -83,6 +84,17 @@ class LoginActivity : AppCompatActivity() {
         }
 
         binding.btnLogin.applyPressScaleFeedback()
+
+        // The error line lives above the fields; the button is the thing that can end up below
+        // the keyboard, so pull it into view whenever the password field takes focus.
+        binding.etPassword.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) binding.btnLogin.postDelayed({ revealLoginButton() }, 300)
+        }
+        // The IME resize can land after that delay; re-reveal whenever the scroller's height changes.
+        binding.scrollLogin.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+            val heightChanged = (bottom - top) != (oldBottom - oldTop)
+            if (heightChanged && binding.etPassword.hasFocus()) binding.btnLogin.post { revealLoginButton() }
+        }
 
         // Back from the launcher screen would drop to the Android home screen without warning —
         // easy to hit by accident on a shared handheld. Ask first, like Station 2.
@@ -183,6 +195,14 @@ class LoginActivity : AppCompatActivity() {
     private fun showError(message: String) {
         binding.tvLoginError.text = message
         binding.tvLoginError.visibility = View.VISIBLE
+        binding.scrollLogin.post { binding.scrollLogin.smoothScrollTo(0, 0) }
+    }
+
+    /** Asks the NestedScrollView to scroll until the whole Log In button is visible. */
+    private fun revealLoginButton() {
+        val button = binding.btnLogin
+        if (button.width == 0) return
+        button.requestRectangleOnScreen(Rect(0, 0, button.width, button.height), false)
     }
 
     private fun goHome() {
