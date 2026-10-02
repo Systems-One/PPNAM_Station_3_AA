@@ -99,8 +99,8 @@
                             android:completionThreshold="1"
                             android:dropDownHeight="wrap_content"
                             android:imeOptions="actionNext"
-                            android:inputType="text"
-                            android:maxLines="1"
+                            android:inputType="textNoSuggestions"
+                            android:singleLine="true"
                             android:paddingStart="16dp"
                             android:paddingEnd="16dp"
                             android:popupBackground="@color/card_background_alt"
@@ -124,7 +124,7 @@
                             android:layout_height="wrap_content"
                             android:imeOptions="actionDone"
                             android:inputType="textPassword"
-                            android:maxLines="1"
+                            android:singleLine="true"
                             android:textColor="@color/text_primary_dark" />
                     </com.google.android.material.textfield.TextInputLayout>
 

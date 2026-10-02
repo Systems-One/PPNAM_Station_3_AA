@@ -7,7 +7,6 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.view.inputmethod.EditorInfo
 import android.widget.ArrayAdapter
 import androidx.activity.addCallback
 import androidx.appcompat.app.AlertDialog
@@ -77,14 +76,7 @@ class LoginActivity : AppCompatActivity() {
         }
 
         binding.btnLogin.setOnClickListener { submitCredentials() }
-        binding.etPassword.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_DONE) {
-                submitCredentials()
-                true
-            } else {
-                false
-            }
-        }
+        binding.etPassword.onSubmit { submitCredentials() }
 
         binding.btnSettings.setOnClickListener {
             startActivityForward(Intent(this, SettingsActivity::class.java))
@@ -148,6 +140,7 @@ class LoginActivity : AppCompatActivity() {
     private fun submitCredentials() {
         val username = binding.etUsername.text.toString().trim()
         val password = binding.etPassword.text.toString()
+        hideKeyboard()
         if (username.isEmpty() || password.isEmpty()) {
             showError(getString(R.string.error_fill_all_fields))
             return

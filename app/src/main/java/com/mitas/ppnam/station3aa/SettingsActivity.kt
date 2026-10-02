@@ -4,7 +4,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
-import android.view.inputmethod.EditorInfo
 import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
 import com.mitas.ppnam.station3aa.databinding.ActivitySettingsBinding
@@ -55,14 +54,8 @@ class SettingsActivity : AppCompatActivity() {
         // A blank field on save means "keep the provisioned password" (see save below).
 
         binding.btnUnlock.setOnClickListener { submitPin() }
-        binding.etPin.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_DONE) {
-                submitPin()
-                true
-            } else {
-                false
-            }
-        }
+        binding.etPin.onSubmit { submitPin() }
+        binding.etBrokerPassword.onSubmit { binding.btnSaveSettings.performClick() }
 
         binding.btnSaveSettings.setOnClickListener {
             val host = binding.etBrokerHost.text.toString().trim()

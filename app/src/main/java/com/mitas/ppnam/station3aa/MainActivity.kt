@@ -8,7 +8,6 @@ import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.view.inputmethod.EditorInfo
 import androidx.appcompat.app.AppCompatActivity
 import com.mitas.ppnam.station3aa.databinding.ActivityMainBinding
 import java.text.DecimalFormat
@@ -140,14 +139,7 @@ class MainActivity : AppCompatActivity() {
         binding.etScanValue.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) binding.btnSelectSource.postDelayed({ revealSelectSource() }, 300)
         }
-        binding.etScanValue.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_DONE) {
-                submitScan(binding.etScanValue.text?.toString())
-                true
-            } else {
-                false
-            }
-        }
+        binding.etScanValue.onSubmit { submitScan(binding.etScanValue.text?.toString()) }
         binding.btnRetryScan.setOnClickListener { lastScanValue?.let { submitScan(it) } }
         updateScanAvailability()
     }
