@@ -67,6 +67,7 @@ class LoginActivity : AppCompatActivity() {
         forceLightStatusBarIcons()
 
         authClient = AuthClient(this)
+        OperatorDirectory.load(this)
         setupOperatorDropdown()
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
         MqttManager.getInstance(this).addConnectionListener(connectionListener)
@@ -127,10 +128,10 @@ class LoginActivity : AppCompatActivity() {
             operatorAdapter.getItem(position)?.let { binding.etUsername.setText(it.username, false) }
             binding.etPassword.requestFocus()
         }
+        // An editable autocomplete does not open its list on tap, so open it ourselves whenever
+        // there is something to show — also with a name already in the field (Station 1 parity).
         binding.etUsername.setOnClickListener {
-            if (operatorAdapter.count > 0 && binding.etUsername.text.isNullOrEmpty()) {
-                binding.etUsername.showDropDown()
-            }
+            if (operatorAdapter.count > 0) binding.etUsername.showDropDown()
         }
     }
 

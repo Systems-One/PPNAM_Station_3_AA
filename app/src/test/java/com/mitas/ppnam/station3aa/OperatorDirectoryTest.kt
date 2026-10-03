@@ -39,4 +39,36 @@ class OperatorDirectoryTest {
         assertEquals("mdlamini", OperatorEntry("mdlamini", "mdlamini").toString())
         assertEquals("J Smith (jsmith)", OperatorEntry("jsmith", "J Smith").toString())
     }
+
+    // --- on-device cache codec (SharedPreferences operator_directory/operators) ---
+
+    @Test
+    fun `encode then decode round-trips the list in order`() {
+        val list = listOf(OperatorEntry("jsmith", "J Smith"), OperatorEntry("mdlamini", "mdlamini"))
+        assertEquals(list, OperatorDirectory.decode(OperatorDirectory.encode(list)))
+    }
+
+    @Test
+    fun `encode of an empty list decodes to an empty list`() {
+        assertEquals("[]", OperatorDirectory.encode(emptyList()))
+        assertTrue(OperatorDirectory.decode(OperatorDirectory.encode(emptyList())).isEmpty())
+    }
+
+    @Test
+    fun `decode tolerates null blank garbage and non-array text`() {
+        assertTrue(OperatorDirectory.decode(null).isEmpty())
+        assertTrue(OperatorDirectory.decode("").isEmpty())
+        assertTrue(OperatorDirectory.decode("   ").isEmpty())
+        assertTrue(OperatorDirectory.decode("not json").isEmpty())
+        assertTrue(OperatorDirectory.decode("{}").isEmpty())
+        assertTrue(OperatorDirectory.decode("[]").isEmpty())
+    }
+
+    @Test
+    fun `decode drops blank usernames and falls back displayName to username`() {
+        val entries = OperatorDirectory.decode(
+            """[{"displayName":"Ghost"},{"username":"  ","displayName":"Blank"},{"username":"jsmith","displayName":""},{"username":"ok","displayName":"O K"},"junk",null]"""
+        )
+        assertEquals(listOf(OperatorEntry("jsmith", "jsmith"), OperatorEntry("ok", "O K")), entries)
+    }
 }
