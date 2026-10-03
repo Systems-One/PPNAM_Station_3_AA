@@ -28,13 +28,25 @@
     <string name="hint_password">Password</string>
     <string name="btn_log_in">Log In</string>
     <string name="label_or_scan_badge">or scan your badge</string>
+    <!-- Login failures, chosen by LoginErrorMessages — never the station's raw reason text -->
+    <string name="login_error_invalid_credentials">Incorrect username or password.</string>
+    <string name="login_error_badge_unknown">Badge not recognised. Try again or log in with your username.</string>
+    <string name="login_error_timeout">Station 3 did not respond. Check the station and retry.</string>
+    <string name="login_error_not_connected">Not connected to the broker. Check Settings and retry.</string>
+    <string name="login_error_refused">Login was refused by the station (%1$s). Ask a supervisor.</string>
+    <string name="login_error_station">Station 3 could not complete the login. Try again.</string>
+    <!-- Forced sign-out reasons, shown once on the login screen -->
+    <plurals name="signed_out_inactivity">
+        <item quantity="one">Signed out after %1$d minute of inactivity.</item>
+        <item quantity="other">Signed out after %1$d minutes of inactivity.</item>
+    </plurals>
     <string name="exit_dialog_title">Close the app?</string>
     <string name="exit_dialog_message">You\'ll leave PPNAM Station 3 and return to the home screen.</string>
     <string name="exit_dialog_close">Close</string>
     <string name="exit_dialog_stay">Stay</string>
     <string name="logout_dialog_title">Log out?</string>
     <string name="logout_dialog_message">You\'ll need to log in again to continue.</string>
-    <string name="btn_log_out">Log Out</string>
+    <string name="btn_log_out">Log out</string>
     <string name="btn_cancel">Cancel</string>
 
     <!-- Settings -->
@@ -53,6 +65,26 @@
     <string name="label_version">Version</string>
     <string name="label_device_id">Device ID</string>
     <string name="label_signed_in_as">Signed in as</string>
+    <string name="section_session_policy">Session</string>
+    <string name="hint_auto_logout_minutes">Auto sign-out (minutes, 0 = never)</string>
+    <string name="error_auto_logout_minutes">Enter 0–1440</string>
+    <string name="error_host_required">Enter the broker host</string>
+    <string name="error_port_invalid">Enter a port from 1 to 65535</string>
+    <string name="error_password_store">Could not store the password securely</string>
+    <string name="btn_test_apply">Test &amp; Apply</string>
+    <string name="apply_testing">Testing connection…</string>
+    <string name="apply_connected">Connected — settings saved</string>
+    <string name="apply_failed_timeout">Saved, but could not connect to %1$s:%2$d. Check the broker settings.</string>
+    <string name="apply_failed_rejected">The broker rejected the username or password. Settings were saved — check them and try again.</string>
+    <string name="apply_failed_store">Nothing was changed: the password could not be stored securely.</string>
+
+    <!-- Supervisor PIN gate -->
+    <string name="pin_error_blank">Enter the supervisor PIN.</string>
+    <plurals name="pin_error_incorrect">
+        <item quantity="one">Incorrect PIN. %1$d attempt left before lockout.</item>
+        <item quantity="other">Incorrect PIN. %1$d attempts left before lockout.</item>
+    </plurals>
+    <string name="pin_error_lockout">Too many attempts. Try again in %1$ds.</string>
 
     <string name="station_offline_title">MAIN STATION OFFLINE</string>
     <string name="station_offline_message">Please wait for the main station to reconnect...</string>

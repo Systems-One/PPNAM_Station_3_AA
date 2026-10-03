@@ -17,12 +17,11 @@
     <color name="text_primary">#EDF4FB</color>
     <color name="text_muted">#9BAEC0</color>
 
-    <!-- App identity - PPNAM icon pack app 3 (crimson): field and light tint.
-         The field colour doubles as the primary action colour so each station
-         app carries its launcher identity through its UI. -->
-    <color name="station_field">#FF7B1418</color>
+    <!-- App identity - PPNAM icon pack app 3 (crimson): field and light tint, as in
+         UI_Design\Android app logo directions\README.md. The field colour doubles as the
+         primary action colour so each station app carries its launcher identity through its UI. -->
     <color name="brand_field">#7B1418</color>
-    <color name="brand_tint">#E0A6A8</color>
+    <color name="brand_tint">#E3B9BA</color>
 
     <!-- Semantic / Accent Colours -->
     <color name="primary_action">@color/brand_field</color>

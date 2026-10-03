@@ -34,8 +34,8 @@
                     android:layout_height="48dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Settings"
-                    android:src="@android:drawable/ic_menu_preferences"
-                    app:tint="@color/text_muted" />
+                    android:src="@drawable/ic_settings_gear"
+                    app:tint="@color/text_primary" />
 
                 <com.mitas.ppnam.station3aa.ConnectionPillView
                     android:id="@+id/connectionPill"
@@ -47,6 +47,7 @@
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollLogin"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:clipToPadding="false"
@@ -80,6 +81,19 @@
                     android:orientation="vertical"
                     android:padding="24dp">
 
+                    <!-- Above the fields (audit S3-03): an error that grows the form from below
+                         pushed Log In under the keyboard. Up here it never moves the button. -->
+                    <TextView
+                        android:id="@+id/tvLoginError"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:textColor="@color/danger"
+                        android:textSize="15sp"
+                        android:visibility="gone"
+                        tools:text="Login failed"
+                        tools:visibility="visible" />
+
                     <!-- Editable dropdown: filled from the station's operator_list, but a typed
                          username still works when the list is empty or unavailable. -->
                     <com.google.android.material.textfield.TextInputLayout
@@ -99,8 +113,8 @@
                             android:completionThreshold="1"
                             android:dropDownHeight="wrap_content"
                             android:imeOptions="actionNext"
-                            android:inputType="text"
-                            android:maxLines="1"
+                            android:inputType="textNoSuggestions"
+                            android:singleLine="true"
                             android:paddingStart="16dp"
                             android:paddingEnd="16dp"
                             android:popupBackground="@color/card_background_alt"
@@ -115,29 +129,20 @@
                         android:layout_marginTop="16dp"
                         android:hint="@string/hint_password"
                         app:boxStrokeColor="@color/outline_dark"
-                        app:hintTextColor="@color/text_secondary_dark"
-                        app:passwordToggleEnabled="false">
+                        app:endIconMode="password_toggle"
+                        app:endIconTint="@color/text_secondary_dark"
+                        app:hintTextColor="@color/text_secondary_dark">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etPassword"
+                            android:saveEnabled="false"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:imeOptions="actionDone"
                             android:inputType="textPassword"
-                            android:maxLines="1"
+                            android:singleLine="true"
                             android:textColor="@color/text_primary_dark" />
                     </com.google.android.material.textfield.TextInputLayout>
-
-                    <TextView
-                        android:id="@+id/tvLoginError"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:textColor="@color/danger"
-                        android:textSize="15sp"
-                        android:visibility="gone"
-                        tools:text="Login failed"
-                        tools:visibility="visible" />
 
                     <FrameLayout
                         android:layout_width="match_parent"

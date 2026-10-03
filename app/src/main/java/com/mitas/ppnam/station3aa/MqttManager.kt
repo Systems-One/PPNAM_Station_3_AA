@@ -15,12 +15,20 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.text.Charsets
 
 class MqttManager private constructor(context: Context) {
     private val appContext = context.applicationContext
     private var client: Mqtt3AsyncClient? = null
     private val isConnecting = AtomicBoolean(false)
+
+    /**
+     * Identifies the current connection attempt. Bumped whenever an attempt is abandoned
+     * (forced connect, disconnect mid-connect) so the stale client's callbacks - completion and
+     * the disconnected listener - are ignored instead of clobbering the new attempt's state.
+     */
+    private val generation = AtomicInteger(0)
     
     private val connectionListeners = CopyOnWriteArrayList<(Boolean) -> Unit>()
     private val stationStatusListeners = CopyOnWriteArrayList<(Boolean) -> Unit>()
@@ -54,7 +62,8 @@ class MqttManager private constructor(context: Context) {
 
     // HiveMQ calls this for a failed CONNECT as well as a dropped connection, so it is the ONE
     // place reconnects are scheduled — the connect callback must not schedule a second one.
-    private val disconnectedListener = MqttClientDisconnectedListener { context: MqttClientDisconnectedContext ->
+    private fun disconnectedListenerFor(gen: Int) = MqttClientDisconnectedListener { context: MqttClientDisconnectedContext ->
+        if (gen != generation.get()) return@MqttClientDisconnectedListener // abandoned attempt
         Log.w("MqttManager", "Disconnected from broker: ${context.cause.message}")
         isConnecting.set(false)
         notifyListeners(false)
@@ -90,6 +99,9 @@ class MqttManager private constructor(context: Context) {
     }
 
     fun isConnected(): Boolean = client?.state == MqttClientState.CONNECTED
+
+    /** True while a CONNECT is pending (not yet connected, not yet failed). */
+    fun isConnectAttemptInFlight(): Boolean = isConnecting.get()
 
     fun addConnectionListener(listener: (Boolean) -> Unit) {
         connectionListeners.add(listener)
@@ -144,8 +156,8 @@ class MqttManager private constructor(context: Context) {
         brokerRejectedCredential = false
 
         if (force) {
-            disconnect { connect(force = false) }
-            return
+            // Abandon whatever is pending (old host/credentials) so this attempt is the only one.
+            abandonCurrentClient()
         }
 
         val settings = settingsRepository.brokerSettings()
@@ -162,6 +174,7 @@ class MqttManager private constructor(context: Context) {
         wantsConnection.set(true)
         notifyConnectionStatus()
         isConnecting.set(true)
+        val gen = generation.get()
 
         // Presence lives on this scanner's base node (retained, also the Last Will) — the
         // contract's presence QoS is 2. The device id is derived from this handheld's hardware
@@ -173,7 +186,7 @@ class MqttManager private constructor(context: Context) {
             .identifier("ScannerApp_" + UUID.randomUUID().toString().take(8))
             .serverHost(settings.host)
             .serverPort(settings.port)
-            .addDisconnectedListener(disconnectedListener)
+            .addDisconnectedListener(disconnectedListenerFor(gen))
         if (settings.useTls) builder = builder.sslWithDefaultConfig()
         if (settings.useWebSocket) builder = builder.webSocketWithDefaultConfig()
         client = builder.buildAsync()
@@ -193,6 +206,7 @@ class MqttManager private constructor(context: Context) {
                 ?.applyWillPublish()
             ?.send()
             ?.whenComplete { _, throwable ->
+                if (gen != generation.get()) return@whenComplete // abandoned: a newer attempt owns the state
                 isConnecting.set(false)
                 if (throwable == null) {
                     Log.i("MqttManager", "Connected")
@@ -225,6 +239,18 @@ class MqttManager private constructor(context: Context) {
     fun refreshPresence() {
         if (!isConnected() || !wantsConnection.get()) return
         publish(MqttTopics.devicePresence(DeviceIdentity.deviceId(appContext)), "online", true, MqttQos.EXACTLY_ONCE)
+    }
+
+    /**
+     * Drops the current client without ceremony and invalidates its callbacks. Used when a pending
+     * or live connection must be replaced (forced connect) or cancelled (disconnect mid-connect).
+     */
+    private fun abandonCurrentClient() {
+        generation.incrementAndGet()
+        val old = client
+        client = null
+        isConnecting.set(false)
+        try { old?.disconnect() } catch (e: Exception) { Log.w("MqttManager", "Abandoning client failed", e) }
     }
 
     private fun subscribeInternal(topicFilter: String, qos: MqttQos) {
@@ -358,9 +384,19 @@ class MqttManager private constructor(context: Context) {
 
     fun disconnect(onComplete: () -> Unit = {}) {
         wantsConnection.set(false)
+        // A stale "broker rejected" from the previous settings must not be replayed to status
+        // listeners registered before the next connect() (Test & Apply would report an instant
+        // false rejection).
+        brokerRejectedCredential = false
         statusHandler.removeCallbacks(reconnectRunnable)
         notifyConnectionStatus()
         if (!isConnected()) {
+            // A CONNECT still in flight (typically against an unreachable host, which netty only
+            // gives up on after 10 s) must be abandoned here: otherwise the caller's next
+            // connect() is swallowed by the isConnecting guard and, with wantsConnection now
+            // false, the eventual failure schedules no retry - Test & Apply with corrected
+            // settings would sit Offline forever (audit review focus 5).
+            abandonCurrentClient()
             onComplete()
             return
         }
@@ -371,8 +407,14 @@ class MqttManager private constructor(context: Context) {
             if (throwable != null) {
                 Log.e("MqttManager", "Failed to publish offline status during disconnect", throwable)
             }
-            client?.disconnect()?.whenComplete { _, _ ->
-                client = null
+            val closing = client
+            if (closing == null) {
+                onComplete()
+                return@publish
+            }
+            closing.disconnect().whenComplete { _, _ ->
+                // A forced connect may already have installed a newer client; leave that alone.
+                if (client === closing) client = null
                 onComplete()
             }
         }

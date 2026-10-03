@@ -21,28 +21,42 @@ import androidx.dynamicanimation.animation.SpringForce
 fun View.applyPressScaleFeedback(pressedScale: Float = 0.96f) {
     if (!ValueAnimator.areAnimatorsEnabled()) return
 
-    fun springTo(property: FloatPropertyCompat<View>, target: Float) {
-        SpringAnimation(this, property, target).apply {
-            spring = SpringForce(target).apply {
-                dampingRatio = SpringForce.DAMPING_RATIO_NO_BOUNCY
-                stiffness = SpringForce.STIFFNESS_HIGH
-            }
-        }.start()
+    // One spring per axis for the lifetime of the view. Creating a fresh SpringAnimation on
+    // every touch event let the press-down spring and the release spring run at the same time,
+    // and whichever settled last won - which is how buttons stayed at 0.96 after a tap
+    // (audit S3-07). animateToFinalPosition retargets the running spring instead.
+    fun spring(property: FloatPropertyCompat<View>) = SpringAnimation(this, property).apply {
+        spring = SpringForce().apply {
+            dampingRatio = SpringForce.DAMPING_RATIO_NO_BOUNCY
+            stiffness = SpringForce.STIFFNESS_HIGH
+        }
     }
+    val springs = PressSprings(spring(DynamicAnimation.SCALE_X), spring(DynamicAnimation.SCALE_Y))
+    setTag(R.id.press_scale_springs, springs)
 
     setOnTouchListener { v, event ->
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                springTo(DynamicAnimation.SCALE_X, pressedScale)
-                springTo(DynamicAnimation.SCALE_Y, pressedScale)
-            }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                springTo(DynamicAnimation.SCALE_X, 1f)
-                springTo(DynamicAnimation.SCALE_Y, 1f)
-            }
+            MotionEvent.ACTION_DOWN -> springs.animateTo(pressedScale)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> springs.animateTo(1f)
         }
         // Let the view's normal click/ripple handling still run.
         v.onTouchEvent(event)
+    }
+}
+
+/**
+ * Returns a view to its resting scale. A view disabled by its own click handler (Log In while
+ * the request is in flight, Select Source while a scan is pending) stops receiving touch
+ * events, so its ACTION_UP never reaches the listener above; call this when re-enabling it.
+ */
+fun View.releasePressScale() {
+    (getTag(R.id.press_scale_springs) as? PressSprings)?.animateTo(1f)
+}
+
+private class PressSprings(private val scaleX: SpringAnimation, private val scaleY: SpringAnimation) {
+    fun animateTo(target: Float) {
+        scaleX.animateToFinalPosition(target)
+        scaleY.animateToFinalPosition(target)
     }
 }
 

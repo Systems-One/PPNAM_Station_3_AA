@@ -4,15 +4,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.view.WindowManager
-import android.view.inputmethod.EditorInfo
-import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import androidx.activity.addCallback
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.mitas.ppnam.station3aa.databinding.ActivityMainBinding
 import java.text.DecimalFormat
 
@@ -26,7 +23,7 @@ import java.text.DecimalFormat
  * available kg and the station's instruction. Pack weight, labels and printing stay on the
  * desktop — scanning never deducts stock.
  */
-class MainActivity : AppCompatActivity() {
+class MainActivity : SessionActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var workflow: WorkflowClient
@@ -36,6 +33,18 @@ class MainActivity : AppCompatActivity() {
     private var scanForbidden = false
     private var lastScanValue: String? = null
     private val kgFormat = DecimalFormat("#,##0.###")
+    private var statusIsError = false
+
+    private companion object {
+        const val STATE_LAST_SCAN = "last_scan_value"
+        const val STATE_STATUS_VISIBLE = "status_visible"
+        const val STATE_STATUS_TEXT = "status_text"
+        const val STATE_STATUS_RETRY = "status_retry"
+        const val STATE_STATUS_ERROR = "status_error"
+        const val STATE_SOURCE_VISIBLE = "source_visible"
+        const val STATE_SOURCE_DESCRIPTION_VISIBLE = "source_description_visible"
+        const val STATE_SOURCE_INSTRUCTION_VISIBLE = "source_instruction_visible"
+    }
 
     private val connectionStatusListener: (ConnectionStatus) -> Unit = { status ->
         runOnUiThread {
@@ -75,6 +84,7 @@ class MainActivity : AppCompatActivity() {
             val action = intent?.action ?: return
             if (action != ScannerApp.ACTION_BARCODE && action != ScannerApp.ACTION_RFID) return
             val data = intent.getStringExtra(ScannerApp.EXTRA_SCAN_DATA) ?: return
+            SessionGuard.touch()
             // The Settings shortcut tag opens Settings app-wide; it is never a source.
             if (data.trim() == ScannerApp.SETTINGS_RFID) return
             runOnUiThread {
@@ -95,25 +105,25 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding = ActivityMainBinding.inflate(layoutInflater)
-        enableEdgeToEdge()
         setContentView(binding.root)
         forceLightStatusBarIcons()
-
-        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN)
-
-        ViewCompat.setOnApplyWindowInsetsListener(binding.main) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        // No enableEdgeToEdge() here: with decorFitsSystemWindows=false the manifest's
+        // adjustResize is ignored and the IME inset was never applied, so "Select Source" sat
+        // under the keyboard (audit S3-01). Letting the decor fit the system windows means the
+        // window shrinks for the keyboard and scrollMasterBatch can scroll the button into view.
 
         workflow = WorkflowClient.getInstance(this)
         setupHome()
         setupMasterBatch()
+        savedInstanceState?.let { restoreScanState(it) }
 
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
         MqttManager.getInstance(this).addStationStatusListener(stationStatusListener)
         OperatorSessionHolder.addListener(sessionListener)
+
+        // Back on the home screen used to drop straight to the Android launcher with the operator
+        // still signed in (audit S3-02). Ask first, exactly like Login and Station 2's Home.
+        onBackPressedDispatcher.addCallback(this) { showExitDialog() }
     }
 
     private fun setupHome() {
@@ -139,16 +149,25 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnSelectSource.applyPressScaleFeedback()
         binding.btnSelectSource.setOnClickListener { submitScan(binding.etScanValue.text?.toString()) }
-        binding.etScanValue.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_DONE) {
-                submitScan(binding.etScanValue.text?.toString())
-                true
-            } else {
-                false
-            }
+        // The field sits above the keyboard but the button does not; when the window resizes
+        // for the IME while the field has focus, bring the button into the visible area.
+        binding.scrollMasterBatch.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+            val heightChanged = (bottom - top) != (oldBottom - oldTop)
+            if (heightChanged && binding.etScanValue.hasFocus()) binding.btnSelectSource.post { revealSelectSource() }
         }
+        binding.etScanValue.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) binding.btnSelectSource.postDelayed({ revealSelectSource() }, 300)
+        }
+        binding.etScanValue.onSubmit { submitScan(binding.etScanValue.text?.toString()) }
         binding.btnRetryScan.setOnClickListener { lastScanValue?.let { submitScan(it) } }
         updateScanAvailability()
+    }
+
+    /** Asks the enclosing NestedScrollView to scroll until the whole button is on screen. */
+    private fun revealSelectSource() {
+        val button = binding.btnSelectSource
+        if (button.width == 0) return
+        button.requestRectangleOnScreen(Rect(0, 0, button.width, button.height), false)
     }
 
     private fun submitScan(raw: String?) {
@@ -219,11 +238,46 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showScanStatus(message: String, pending: Boolean, retry: Boolean, error: Boolean = false) {
+        statusIsError = error
         binding.layoutScanStatus.visibility = View.VISIBLE
         binding.progressScan.visibility = if (pending) View.VISIBLE else View.GONE
         binding.tvScanStatus.text = message
         binding.tvScanStatus.setTextColor(getColor(if (error) R.color.danger else R.color.text_primary))
         binding.btnRetryScan.visibility = if (retry && lastScanValue != null) View.VISIBLE else View.GONE
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        if (!::binding.isInitialized) return
+        outState.putString(STATE_LAST_SCAN, lastScanValue)
+        outState.putBoolean(STATE_STATUS_VISIBLE, binding.layoutScanStatus.visibility == View.VISIBLE)
+        outState.putString(STATE_STATUS_TEXT, binding.tvScanStatus.text?.toString())
+        outState.putBoolean(STATE_STATUS_RETRY, binding.btnRetryScan.visibility == View.VISIBLE)
+        outState.putBoolean(STATE_STATUS_ERROR, statusIsError)
+        outState.putBoolean(STATE_SOURCE_VISIBLE, binding.cardSource.visibility == View.VISIBLE)
+        outState.putBoolean(STATE_SOURCE_DESCRIPTION_VISIBLE, binding.tvSourceDescription.visibility == View.VISIBLE)
+        outState.putBoolean(STATE_SOURCE_INSTRUCTION_VISIBLE, binding.tvSourceInstruction.visibility == View.VISIBLE)
+    }
+
+    /** Status text and the selected-source card are not View state; restore them by hand. */
+    private fun restoreScanState(state: Bundle) {
+        lastScanValue = state.getString(STATE_LAST_SCAN)
+        if (state.getBoolean(STATE_SOURCE_VISIBLE)) {
+            binding.cardSource.visibility = View.VISIBLE
+            binding.tvSourceDescription.visibility =
+                if (state.getBoolean(STATE_SOURCE_DESCRIPTION_VISIBLE)) View.VISIBLE else View.GONE
+            binding.tvSourceInstruction.visibility =
+                if (state.getBoolean(STATE_SOURCE_INSTRUCTION_VISIBLE)) View.VISIBLE else View.GONE
+        }
+        val text = state.getString(STATE_STATUS_TEXT).orEmpty()
+        if (state.getBoolean(STATE_STATUS_VISIBLE) && text.isNotBlank()) {
+            showScanStatus(
+                text,
+                pending = workflow.isScanPending,
+                retry = state.getBoolean(STATE_STATUS_RETRY),
+                error = state.getBoolean(STATE_STATUS_ERROR),
+            )
+        }
     }
 
     /** New workflow requests are disabled while the broker or the station is unavailable (§3). */
@@ -234,6 +288,7 @@ class MainActivity : AppCompatActivity() {
         if (!::binding.isInitialized || !binding.scrollMasterBatch.isShown) return
         val available = canScan()
         binding.btnSelectSource.isEnabled = available
+        if (available) binding.btnSelectSource.releasePressScale()
         binding.etScanValue.isEnabled = connectionStatus == ConnectionStatus.CONNECTED && !scanForbidden
         binding.btnRetryScan.isEnabled = available
 
@@ -255,13 +310,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showLogoutDialog() {
-        androidx.appcompat.app.AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
+        MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.logout_dialog_title))
             .setMessage(getString(R.string.logout_dialog_message))
             .setPositiveButton(getString(R.string.btn_log_out)) { _, _ ->
                 AuthClient(this).logout()
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    private fun showExitDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.exit_dialog_title))
+            .setMessage(getString(R.string.exit_dialog_message))
+            .setPositiveButton(getString(R.string.exit_dialog_close)) { _, _ -> finishAffinity() }
+            .setNegativeButton(getString(R.string.exit_dialog_stay), null)
             .show()
     }
 

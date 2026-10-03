@@ -4,13 +4,14 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.view.inputmethod.EditorInfo
 import android.widget.ArrayAdapter
 import androidx.activity.addCallback
-import androidx.appcompat.app.AlertDialog
+import androidx.core.widget.addTextChangedListener
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
 import com.mitas.ppnam.station3aa.databinding.ActivityLoginBinding
 
@@ -77,20 +78,24 @@ class LoginActivity : AppCompatActivity() {
         }
 
         binding.btnLogin.setOnClickListener { submitCredentials() }
-        binding.etPassword.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_DONE) {
-                submitCredentials()
-                true
-            } else {
-                false
-            }
-        }
+        binding.etPassword.onSubmit { submitCredentials() }
 
         binding.btnSettings.setOnClickListener {
             startActivityForward(Intent(this, SettingsActivity::class.java))
         }
 
         binding.btnLogin.applyPressScaleFeedback()
+
+        // The error line lives above the fields; the button is the thing that can end up below
+        // the keyboard, so pull it into view whenever the password field takes focus.
+        binding.etPassword.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) binding.btnLogin.postDelayed({ revealLoginButton() }, 300)
+        }
+        // The IME resize can land after that delay; re-reveal whenever the scroller's height changes.
+        binding.scrollLogin.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+            val heightChanged = (bottom - top) != (oldBottom - oldTop)
+            if (heightChanged && binding.etPassword.hasFocus()) binding.btnLogin.post { revealLoginButton() }
+        }
 
         // Back from the launcher screen would drop to the Android home screen without warning —
         // easy to hit by accident on a shared handheld. Ask first, like Station 2.
@@ -116,6 +121,8 @@ class LoginActivity : AppCompatActivity() {
         operatorAdapter = ArrayAdapter(this, R.layout.item_operator_dropdown, OperatorDirectory.cached.toMutableList())
         binding.etUsername.setAdapter(operatorAdapter)
         // The row shows "Display Name (username)"; the field must hold just the username.
+        // A stale "Incorrect username or password" must not outlive the field it is about.
+        binding.etUsername.addTextChangedListener { binding.tvLoginError.visibility = View.GONE }
         binding.etUsername.setOnItemClickListener { _, _, position, _ ->
             operatorAdapter.getItem(position)?.let { binding.etUsername.setText(it.username, false) }
             binding.etPassword.requestFocus()
@@ -148,6 +155,7 @@ class LoginActivity : AppCompatActivity() {
     private fun submitCredentials() {
         val username = binding.etUsername.text.toString().trim()
         val password = binding.etPassword.text.toString()
+        hideKeyboard()
         if (username.isEmpty() || password.isEmpty()) {
             showError(getString(R.string.error_fill_all_fields))
             return
@@ -173,13 +181,30 @@ class LoginActivity : AppCompatActivity() {
             }
             .onFailure { e ->
                 setLoggingIn(false)
-                showError(e.message ?: "Login failed")
+                android.util.Log.w("LoginActivity", "Login failed: ${e.message}")
+                val kind = LoginErrorMessages.kindFor(e)
+                showError(
+                    if (kind == LoginErrorKind.STATION_REFUSED) {
+                        getString(R.string.login_error_refused, LoginErrorMessages.refusalCode(e))
+                    } else {
+                        getString(loginErrorText(kind))
+                    },
+                )
             }
+    }
+
+    private fun loginErrorText(kind: LoginErrorKind): Int = when (kind) {
+        LoginErrorKind.INVALID_CREDENTIALS -> R.string.login_error_invalid_credentials
+        LoginErrorKind.BADGE_UNKNOWN -> R.string.login_error_badge_unknown
+        LoginErrorKind.TIMEOUT -> R.string.login_error_timeout
+        LoginErrorKind.NOT_CONNECTED -> R.string.login_error_not_connected
+        LoginErrorKind.STATION_REFUSED, LoginErrorKind.STATION_ERROR -> R.string.login_error_station
     }
 
     private fun setLoggingIn(inFlight: Boolean) {
         loginInFlight = inFlight
         binding.btnLogin.isEnabled = !inFlight
+        if (!inFlight) binding.btnLogin.releasePressScale()
         binding.etUsername.isEnabled = !inFlight
         binding.etPassword.isEnabled = !inFlight
         binding.btnLogin.text = if (inFlight) "" else getString(R.string.btn_log_in)
@@ -190,6 +215,14 @@ class LoginActivity : AppCompatActivity() {
     private fun showError(message: String) {
         binding.tvLoginError.text = message
         binding.tvLoginError.visibility = View.VISIBLE
+        binding.scrollLogin.post { binding.scrollLogin.smoothScrollTo(0, 0) }
+    }
+
+    /** Asks the NestedScrollView to scroll until the whole Log In button is visible. */
+    private fun revealLoginButton() {
+        val button = binding.btnLogin
+        if (button.width == 0) return
+        button.requestRectangleOnScreen(Rect(0, 0, button.width, button.height), false)
     }
 
     private fun goHome() {
@@ -201,7 +234,7 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun showExitDialog() {
-        AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
+        MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.exit_dialog_title))
             .setMessage(getString(R.string.exit_dialog_message))
             .setPositiveButton(getString(R.string.exit_dialog_close)) { _, _ -> finishAffinity() }

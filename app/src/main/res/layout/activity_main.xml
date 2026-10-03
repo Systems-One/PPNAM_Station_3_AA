@@ -46,12 +46,16 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
+                android:layout_marginEnd="8dp"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:padding="4dp"
+                app:layout_constrainedWidth="true"
+                app:layout_constraintEnd_toStartOf="@id/btnSettings"
+                app:layout_constraintHorizontal_bias="0"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/imgLogo">
 
@@ -60,7 +64,7 @@
                     android:layout_height="16dp"
                     android:contentDescription="Log out"
                     android:src="@drawable/ic_logout"
-                    app:tint="@color/primary_action" />
+                    app:tint="@color/brand_tint" />
 
                 <TextView
                     android:id="@+id/tvOperator"
@@ -82,7 +86,7 @@
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Settings"
-                android:src="@android:drawable/ic_menu_preferences"
+                android:src="@drawable/ic_settings_gear"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toStartOf="@id/connectionPill"
                 app:layout_constraintTop_toTopOf="parent"
@@ -166,9 +170,9 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:imeOptions="actionGo"
-                            android:inputType="text"
+                            android:inputType="text|textNoSuggestions"
                             android:maxLength="500"
-                            android:maxLines="1"
+                            android:singleLine="true"
                             android:textColor="@color/text_primary_dark" />
                     </com.google.android.material.textfield.TextInputLayout>
 
@@ -255,6 +259,7 @@
                         android:id="@+id/tvSourceProduct"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:freezesText="true"
                         android:layout_marginTop="6dp"
                         android:textColor="@color/text_primary"
                         android:textSize="28sp"
@@ -265,6 +270,7 @@
                         android:id="@+id/tvSourceDescription"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:freezesText="true"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         tools:text="MASTERBATCH BLACK" />
@@ -273,6 +279,7 @@
                         android:id="@+id/tvSourceWeight"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:freezesText="true"
                         android:layout_marginTop="12dp"
                         android:textColor="@color/text_primary"
                         android:textSize="22sp"
@@ -283,6 +290,7 @@
                         android:id="@+id/tvSourceDetails"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:freezesText="true"
                         android:layout_marginTop="6dp"
                         android:lineSpacingExtra="2dp"
                         android:textColor="@color/text_muted"
@@ -293,6 +301,7 @@
                         android:id="@+id/tvSourceInstruction"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:freezesText="true"
                         android:layout_marginTop="12dp"
                         android:textColor="@color/text_primary"
                         android:textSize="15sp"
