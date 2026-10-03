@@ -59,6 +59,9 @@ class SettingsActivity : SessionActivity() {
     private var applyHost = ""
     private var applyPort = 0
 
+    /** Settings is also reachable from Login; it only needs a session if it was opened with one. */
+    override fun requiresSession(): Boolean = signedInAtCreate
+
     private companion object {
         /** 10 s like every other round trip, plus MqttManager's 1.5 s status debounce. */
         const val APPLY_TIMEOUT_MS = 11_500L
