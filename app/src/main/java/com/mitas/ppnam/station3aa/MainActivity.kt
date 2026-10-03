@@ -7,6 +7,9 @@ import android.content.IntentFilter
 import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.view.View
 import androidx.activity.addCallback
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -20,8 +23,8 @@ import java.text.DecimalFormat
  * Source selection (desktop MQTT_CONTRACT.md §7): the operator scans a pallet barcode or its
  * current RFID tag, or types it; the app sends `req/source_scan`, shows Pending until the
  * correlated `res/source_context` arrives (10 s timeout, then Retry), and displays the product,
- * available kg and the station's instruction. Pack weight, labels and printing stay on the
- * desktop — scanning never deducts stock.
+ * available kg and the pallet for [SourceCardPolicy.AUTO_HIDE_MS] before clearing the card. Pack
+ * weight, labels and printing stay on the desktop — scanning never deducts stock.
  */
 class MainActivity : SessionActivity() {
 
@@ -34,6 +37,10 @@ class MainActivity : SessionActivity() {
     private var lastScanValue: String? = null
     private val kgFormat = DecimalFormat("#,##0.###")
     private var statusIsError = false
+    private val mainHandler = Handler(Looper.getMainLooper())
+    /** elapsedRealtime when the source card appeared, or [SourceCardPolicy.NOT_SHOWN]. */
+    private var sourceShownAtMs = SourceCardPolicy.NOT_SHOWN
+    private val hideSourceCard = Runnable { hideSource() }
 
     private companion object {
         const val STATE_LAST_SCAN = "last_scan_value"
@@ -41,9 +48,8 @@ class MainActivity : SessionActivity() {
         const val STATE_STATUS_TEXT = "status_text"
         const val STATE_STATUS_RETRY = "status_retry"
         const val STATE_STATUS_ERROR = "status_error"
-        const val STATE_SOURCE_VISIBLE = "source_visible"
+        const val STATE_SOURCE_SHOWN_AT = "source_shown_at"
         const val STATE_SOURCE_DESCRIPTION_VISIBLE = "source_description_visible"
-        const val STATE_SOURCE_INSTRUCTION_VISIBLE = "source_instruction_visible"
     }
 
     private val connectionStatusListener: (ConnectionStatus) -> Unit = { status ->
@@ -189,7 +195,7 @@ class MainActivity : SessionActivity() {
         }
         // A new scan replaces the previous selection on the station (§7) — so clear it here too,
         // rather than leave an old pallet on screen while the new one is pending.
-        binding.cardSource.visibility = View.GONE
+        hideSource()
         showScanStatus(getString(R.string.scan_pending), pending = true, retry = false)
         updateScanAvailability()
     }
@@ -199,7 +205,7 @@ class MainActivity : SessionActivity() {
         when (outcome) {
             is WorkflowOutcome.SourceSelected -> {
                 binding.layoutScanStatus.visibility = View.GONE
-                showSource(outcome.source, outcome.reason)
+                showSource(outcome.source)
                 binding.etScanValue.setText("")
             }
             is WorkflowOutcome.Rejected -> when (outcome.kind) {
@@ -223,7 +229,12 @@ class MainActivity : SessionActivity() {
         updateScanAvailability()
     }
 
-    private fun showSource(source: SourceContext, reason: String) {
+    /**
+     * Shows the station's answer: product, available kg and the pallet line, nothing below it.
+     * The station's `reason` text (its instruction for the desktop step) is deliberately not
+     * displayed. The card clears itself after [SourceCardPolicy.AUTO_HIDE_MS].
+     */
+    private fun showSource(source: SourceContext) {
         binding.tvSourceProduct.text = source.productCode
         binding.tvSourceDescription.text = source.productDescription.orEmpty()
         binding.tvSourceDescription.visibility = if (source.productDescription != null) View.VISIBLE else View.GONE
@@ -232,9 +243,22 @@ class MainActivity : SessionActivity() {
             "Pallet ${source.palletCode ?: source.sourcePalletId}",
             source.batch?.let { "Batch $it" },
         ).joinToString(" · ")
-        binding.tvSourceInstruction.text = reason
-        binding.tvSourceInstruction.visibility = if (reason.isNotBlank()) View.VISIBLE else View.GONE
         binding.cardSource.visibility = View.VISIBLE
+        scheduleSourceHide(shownAtMs = SystemClock.elapsedRealtime())
+    }
+
+    /** Anchors the countdown to [shownAtMs] so a recreated activity does not restart the 15 s. */
+    private fun scheduleSourceHide(shownAtMs: Long) {
+        sourceShownAtMs = shownAtMs
+        mainHandler.removeCallbacks(hideSourceCard)
+        val remaining = SourceCardPolicy.remainingMs(shownAtMs, SystemClock.elapsedRealtime())
+        if (remaining == 0L) hideSource() else mainHandler.postDelayed(hideSourceCard, remaining)
+    }
+
+    private fun hideSource() {
+        mainHandler.removeCallbacks(hideSourceCard)
+        sourceShownAtMs = SourceCardPolicy.NOT_SHOWN
+        binding.cardSource.visibility = View.GONE
     }
 
     private fun showScanStatus(message: String, pending: Boolean, retry: Boolean, error: Boolean = false) {
@@ -254,20 +278,19 @@ class MainActivity : SessionActivity() {
         outState.putString(STATE_STATUS_TEXT, binding.tvScanStatus.text?.toString())
         outState.putBoolean(STATE_STATUS_RETRY, binding.btnRetryScan.visibility == View.VISIBLE)
         outState.putBoolean(STATE_STATUS_ERROR, statusIsError)
-        outState.putBoolean(STATE_SOURCE_VISIBLE, binding.cardSource.visibility == View.VISIBLE)
+        outState.putLong(STATE_SOURCE_SHOWN_AT, sourceShownAtMs)
         outState.putBoolean(STATE_SOURCE_DESCRIPTION_VISIBLE, binding.tvSourceDescription.visibility == View.VISIBLE)
-        outState.putBoolean(STATE_SOURCE_INSTRUCTION_VISIBLE, binding.tvSourceInstruction.visibility == View.VISIBLE)
     }
 
     /** Status text and the selected-source card are not View state; restore them by hand. */
     private fun restoreScanState(state: Bundle) {
         lastScanValue = state.getString(STATE_LAST_SCAN)
-        if (state.getBoolean(STATE_SOURCE_VISIBLE)) {
+        val shownAt = state.getLong(STATE_SOURCE_SHOWN_AT, SourceCardPolicy.NOT_SHOWN)
+        if (SourceCardPolicy.remainingMs(shownAt, SystemClock.elapsedRealtime()) > 0L) {
             binding.cardSource.visibility = View.VISIBLE
             binding.tvSourceDescription.visibility =
                 if (state.getBoolean(STATE_SOURCE_DESCRIPTION_VISIBLE)) View.VISIBLE else View.GONE
-            binding.tvSourceInstruction.visibility =
-                if (state.getBoolean(STATE_SOURCE_INSTRUCTION_VISIBLE)) View.VISIBLE else View.GONE
+            scheduleSourceHide(shownAt)
         }
         val text = state.getString(STATE_STATUS_TEXT).orEmpty()
         if (state.getBoolean(STATE_STATUS_VISIBLE) && text.isNotBlank()) {
@@ -363,6 +386,7 @@ class MainActivity : SessionActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        mainHandler.removeCallbacks(hideSourceCard)
         if (!::binding.isInitialized) return
         MqttManager.getInstance(this).removeConnectionStatusListener(connectionStatusListener)
         MqttManager.getInstance(this).removeStationStatusListener(stationStatusListener)

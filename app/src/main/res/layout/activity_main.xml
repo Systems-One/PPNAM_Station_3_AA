@@ -226,7 +226,9 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- The selected source. Weights are kg. -->
+            <!-- The selected source. Weights are kg. The pallet line is the last thing shown:
+                 the station's follow-up instruction is not repeated here (it belongs to the
+                 desktop), and MainActivity clears the card 15 s after it appears. -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardSource"
                 android:layout_width="match_parent"
@@ -296,16 +298,6 @@
                         android:textColor="@color/text_muted"
                         android:textSize="14sp"
                         tools:text="Pallet PALLET-001 · Batch BATCH-001" />
-
-                    <TextView
-                        android:id="@+id/tvSourceInstruction"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:freezesText="true"
-                        android:layout_marginTop="12dp"
-                        android:textColor="@color/text_primary"
-                        android:textSize="15sp"
-                        tools:text="Source selected. Enter the pack weight in kg on Station 3 using the same signed-in user." />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
