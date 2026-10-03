@@ -439,22 +439,13 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnSaveSettings"
-                    android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:layout_marginTop="16dp"
-                    android:text="@string/btn_test_apply"
-                    app:backgroundTint="@color/primary_action"
-                    app:cornerRadius="14dp" />
-
                 <!-- Inline result of Test & Apply (Station 2's pattern): the operator stays here
                      and the session is kept, instead of being thrown back to Home. -->
                 <LinearLayout
                     android:id="@+id/layoutApplyStatus"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="16dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:visibility="gone"
@@ -476,6 +467,16 @@
                         android:textSize="15sp"
                         tools:text="Testing connection…" />
                 </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSaveSettings"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/btn_test_apply"
+                    app:backgroundTint="@color/primary_action"
+                    app:cornerRadius="14dp" />
+
             </LinearLayout>
 
             <!-- ============ Session, matching Station 2's SettingsScreen ============ -->

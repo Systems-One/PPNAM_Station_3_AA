@@ -242,6 +242,7 @@ class SettingsActivity : SessionActivity() {
             else -> R.color.success
         }
         binding.tvApplyStatus.setTextColor(getColor(colour))
+        binding.btnSaveSettings.post { binding.btnSaveSettings.scrollIntoView() }
     }
 
     /**
