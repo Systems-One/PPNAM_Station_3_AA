@@ -8,6 +8,7 @@ import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.activity.addCallback
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.mitas.ppnam.station3aa.databinding.ActivityMainBinding
@@ -87,6 +88,13 @@ class MainActivity : SessionActivity() {
             SessionGuard.touch()
             // The Settings shortcut tag opens Settings app-wide; it is never a source.
             if (data.trim() == ScannerApp.SETTINGS_RFID) return
+            // A user badge (Account Management EPC prefix) is never a source pallet.
+            if (action == ScannerApp.ACTION_RFID && UserTagPolicy.isUserTag(data)) {
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, R.string.user_badge_not_source, Toast.LENGTH_SHORT).show()
+                }
+                return
+            }
             runOnUiThread {
                 if (!binding.scrollMasterBatch.isShown) return@runOnUiThread
                 binding.etScanValue.setText(data.trim())

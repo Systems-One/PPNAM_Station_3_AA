@@ -86,6 +86,7 @@
     </plurals>
     <string name="pin_error_lockout">Too many attempts. Try again in %1$ds.</string>
 
+    <string name="user_badge_not_source">That is a user badge, not a source pallet</string>
     <string name="station_offline_title">MAIN STATION OFFLINE</string>
     <string name="station_offline_message">Please wait for the main station to reconnect...</string>
 </resources>
