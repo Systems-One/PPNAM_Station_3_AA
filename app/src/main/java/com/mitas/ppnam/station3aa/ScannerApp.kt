@@ -23,15 +23,16 @@ class ScannerApp : Application() {
 
     private val rfidShortcutReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == "com.rscja.scanner.action.scanner.RFID") {
-                val data = intent.getStringExtra("data")
-                if (data == SETTINGS_RFID) {
-                    val settingsIntent = Intent(context, SettingsActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                    }
-                    startActivity(settingsIntent)
-                }
-            }
+            if (intent?.action != ACTION_RFID) return
+            if (intent.getStringExtra(EXTRA_SCAN_DATA) != SETTINGS_RFID) return
+            // The Chainway RFID broadcast reaches every station app on the device. Only act
+            // while one of this app's screens is resumed (currentActivity is cleared in
+            // onActivityPaused): a tag read meant for the app in front must not pull Station 3's
+            // Settings over it (audit group (l)).
+            val host = currentActivity ?: return
+            host.startActivity(Intent(host, SettingsActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+            })
         }
     }
 
