@@ -24,10 +24,11 @@ object EditorActions {
         EditorInfo.IME_ACTION_SEARCH,
     )
 
-    fun decide(actionId: Int, keyCode: Int?, keyAction: Int?): Decision {
+    fun decide(actionId: Int, keyCode: Int?, keyAction: Int?, repeatCount: Int = 0): Decision {
         val isEnterKey = keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
         return when {
-            isEnterKey -> if (keyAction == KeyEvent.ACTION_DOWN) Decision.SUBMIT else Decision.CONSUME
+            // A held Enter auto-repeats DOWN events (repeatCount > 0): swallow them, submit once.
+            isEnterKey -> if (keyAction == KeyEvent.ACTION_DOWN && repeatCount == 0) Decision.SUBMIT else Decision.CONSUME
             actionId in submitActionIds -> Decision.SUBMIT
             else -> Decision.IGNORE
         }
@@ -37,7 +38,7 @@ object EditorActions {
 /** Installs the shared submit rule on a field. [action] runs on IME Done/Go or hardware Enter. */
 fun TextView.onSubmit(action: () -> Unit) {
     setOnEditorActionListener { _, actionId, event ->
-        when (EditorActions.decide(actionId, event?.keyCode, event?.action)) {
+        when (EditorActions.decide(actionId, event?.keyCode, event?.action, event?.repeatCount ?: 0)) {
             EditorActions.Decision.SUBMIT -> { action(); true }
             EditorActions.Decision.CONSUME -> true
             EditorActions.Decision.IGNORE -> false

@@ -49,6 +49,22 @@ class EditorActionsTest {
     }
 
     @Test
+    fun `a held Enter's auto-repeated key downs are consumed, not re-submitted`() {
+        assertEquals(
+            Decision.CONSUME,
+            EditorActions.decide(EditorInfo.IME_ACTION_UNSPECIFIED, KeyEvent.KEYCODE_ENTER, KeyEvent.ACTION_DOWN, repeatCount = 1),
+        )
+        assertEquals(
+            Decision.CONSUME,
+            EditorActions.decide(EditorInfo.IME_ACTION_UNSPECIFIED, KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.ACTION_DOWN, repeatCount = 7),
+        )
+        assertEquals(
+            Decision.SUBMIT,
+            EditorActions.decide(EditorInfo.IME_ACTION_UNSPECIFIED, KeyEvent.KEYCODE_ENTER, KeyEvent.ACTION_DOWN, repeatCount = 0),
+        )
+    }
+
+    @Test
     fun `other keys are ignored`() {
         assertEquals(
             Decision.IGNORE,
