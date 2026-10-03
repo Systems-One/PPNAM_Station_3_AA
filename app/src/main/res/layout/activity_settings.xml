@@ -304,6 +304,8 @@
                             android:layout_marginTop="12dp"
                             android:hint="@string/hint_broker_host"
                             app:boxStrokeColor="@color/outline_dark"
+                            app:boxStrokeErrorColor="@color/danger"
+                            app:errorTextColor="@color/danger"
                             app:hintTextColor="@color/text_secondary_dark">
 
                             <com.google.android.material.textfield.TextInputEditText
@@ -324,6 +326,8 @@
                             android:layout_marginTop="12dp"
                             android:hint="@string/hint_broker_port"
                             app:boxStrokeColor="@color/outline_dark"
+                            app:boxStrokeErrorColor="@color/danger"
+                            app:errorTextColor="@color/danger"
                             app:hintTextColor="@color/text_secondary_dark">
 
                             <com.google.android.material.textfield.TextInputEditText
@@ -379,6 +383,8 @@
                             android:layout_marginTop="12dp"
                             android:hint="@string/hint_broker_password"
                             app:boxStrokeColor="@color/outline_dark"
+                            app:boxStrokeErrorColor="@color/danger"
+                            app:errorTextColor="@color/danger"
                             app:hintTextColor="@color/text_secondary_dark"
                             app:passwordToggleEnabled="true">
 
@@ -391,6 +397,37 @@
                                 android:singleLine="true"
                                 android:textColor="@color/text_primary_dark" />
                         </com.google.android.material.textfield.TextInputLayout>
+
+                        <TextView
+                            style="@style/SettingsSectionLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="20dp"
+                            android:text="@string/section_session_policy"
+                            android:textColor="@color/primary_action" />
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/tilAutoLogout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:hint="@string/hint_auto_logout_minutes"
+                            app:boxStrokeColor="@color/outline_dark"
+                            app:boxStrokeErrorColor="@color/danger"
+                            app:errorTextColor="@color/danger"
+                            app:hintTextColor="@color/text_secondary_dark">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etAutoLogout"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:imeOptions="actionDone"
+                                android:inputType="number"
+                                android:maxLength="4"
+                                android:singleLine="true"
+                                android:textColor="@color/text_primary_dark" />
+                        </com.google.android.material.textfield.TextInputLayout>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -399,9 +436,38 @@
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
                     android:layout_marginTop="16dp"
-                    android:text="Save &amp; Restart"
+                    android:text="@string/btn_test_apply"
                     app:backgroundTint="@color/primary_action"
                     app:cornerRadius="14dp" />
+
+                <!-- Inline result of Test & Apply (Station 2's pattern): the operator stays here
+                     and the session is kept, instead of being thrown back to Home. -->
+                <LinearLayout
+                    android:id="@+id/layoutApplyStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+
+                    <ProgressBar
+                        android:id="@+id/progressApply"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginEnd="10dp"
+                        android:indeterminateTint="@color/accent_action" />
+
+                    <TextView
+                        android:id="@+id/tvApplyStatus"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp"
+                        tools:text="Testing connection…" />
+                </LinearLayout>
             </LinearLayout>
 
             <!-- ============ Session, matching Station 2's SettingsScreen ============ -->

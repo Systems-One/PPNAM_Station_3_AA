@@ -361,6 +361,15 @@ class MqttManager private constructor(context: Context) {
         statusHandler.removeCallbacks(reconnectRunnable)
         notifyConnectionStatus()
         if (!isConnected()) {
+            // A CONNECT still in flight (typically against an unreachable host, which netty only
+            // gives up on after 10 s) must be abandoned here: otherwise the caller's next
+            // connect() is swallowed by the isConnecting guard and, with wantsConnection now
+            // false, the eventual failure schedules no retry - Test & Apply with corrected
+            // settings would sit Offline forever (audit review focus 5).
+            val inFlight = client
+            client = null
+            isConnecting.set(false)
+            inFlight?.disconnect()
             onComplete()
             return
         }

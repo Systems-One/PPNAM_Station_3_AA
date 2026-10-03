@@ -45,6 +45,14 @@ class SettingsActivity : SessionActivity() {
     private val lockoutTick = Runnable { renderLockout() }
     private var lockoutShowing = false
 
+    private var applyListener: ((ConnectionStatus) -> Unit)? = null
+    private val applyTimeout = Runnable { finishApply(getString(R.string.apply_failed_timeout), error = true) }
+
+    private companion object {
+        /** 10 s like every other round trip, plus MqttManager's 1.5 s status debounce. */
+        const val APPLY_TIMEOUT_MS = 11_500L
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
@@ -70,6 +78,8 @@ class SettingsActivity : SessionActivity() {
         binding.swBrokerWebSocket.isChecked = current.useWebSocket
         binding.swBrokerTls.isChecked = current.useTls
         binding.etBrokerUsername.setText(current.username)
+        binding.etAutoLogout.setText(settingsRepository.autoLogoutMinutes().toString())
+        binding.etAutoLogout.onSubmit { binding.btnSaveSettings.performClick() }
         // The password field stays empty: the stored credential is never echoed back into the UI.
         // A blank field on save means "keep the provisioned password" (see save below).
 
@@ -77,51 +87,7 @@ class SettingsActivity : SessionActivity() {
         binding.etPin.onSubmit { submitPin() }
         binding.etBrokerPassword.onSubmit { binding.btnSaveSettings.performClick() }
 
-        binding.btnSaveSettings.setOnClickListener {
-            val host = binding.etBrokerHost.text.toString().trim()
-            val port = BrokerSettings.parsePort(binding.etBrokerPort.text.toString())
-            if (host.isBlank()) {
-                binding.etBrokerHost.error = "Host required"
-                return@setOnClickListener
-            }
-            if (port == null) {
-                binding.etBrokerPort.error = "Invalid port (1–65535)"
-                return@setOnClickListener
-            }
-
-            val typedPassword = binding.etBrokerPassword.text.toString()
-            val newSettings = BrokerSettings(
-                host = host,
-                port = port,
-                useWebSocket = binding.swBrokerWebSocket.isChecked,
-                useTls = binding.swBrokerTls.isChecked,
-                username = binding.etBrokerUsername.text.toString().trim(),
-                // Blank field keeps the already-provisioned password: the repository only
-                // writes a non-blank password to the Keystore.
-                password = typedPassword.ifBlank { settingsRepository.brokerSettings().password },
-            )
-
-            // 1. Properly disconnect from the OLD broker first
-            MqttManager.getInstance(this).disconnect {
-                runOnUiThread {
-                    // 2. Save the new settings after the old presence is offline
-                    if (!settingsRepository.save(newSettings)) {
-                        binding.etBrokerPassword.error = "Could not store the password securely"
-                        MqttManager.getInstance(this).connect()
-                        return@runOnUiThread
-                    }
-
-                    // 3. Reconnect against the new broker
-                    MqttManager.getInstance(this).connect()
-
-                    // Restart app to apply changes
-                    val intent = Intent(this, MainActivity::class.java)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    startActivity(intent)
-                    finish()
-                }
-            }
-        }
+        binding.btnSaveSettings.setOnClickListener { testAndApply() }
 
         binding.btnUnlock.applyPressScaleFeedback()
         binding.btnSaveSettings.applyPressScaleFeedback()
@@ -133,6 +99,115 @@ class SettingsActivity : SessionActivity() {
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+    }
+
+    /**
+     * Station 2's Test & Apply (audit static-06) with Station 1's validation: validate inline,
+     * save, reconnect, and report the result here — the operator stays on Settings and keeps
+     * the session instead of being relaunched to Home.
+     */
+    private fun testAndApply() {
+        binding.tilBrokerHost.error = null
+        binding.tilBrokerPort.error = null
+        binding.tilBrokerPassword.error = null
+        binding.tilAutoLogout.error = null
+
+        val host = binding.etBrokerHost.text.toString().trim()
+        val port = BrokerSettings.parsePort(binding.etBrokerPort.text.toString())
+        val autoLogoutMinutes = AutoLogout.parseMinutes(binding.etAutoLogout.text.toString())
+        var valid = true
+        if (host.isBlank()) {
+            binding.tilBrokerHost.error = getString(R.string.error_host_required)
+            valid = false
+        }
+        if (port == null) {
+            binding.tilBrokerPort.error = getString(R.string.error_port_invalid)
+            valid = false
+        }
+        if (autoLogoutMinutes == null) {
+            binding.tilAutoLogout.error = getString(R.string.error_auto_logout_minutes)
+            valid = false
+        }
+        if (!valid || port == null || autoLogoutMinutes == null) return
+        hideKeyboard()
+
+        settingsRepository.saveAutoLogoutMinutes(autoLogoutMinutes)
+        SessionGuard.applyTimeout()
+
+        val typedPassword = binding.etBrokerPassword.text.toString()
+        val newSettings = BrokerSettings(
+            host = host,
+            port = port,
+            useWebSocket = binding.swBrokerWebSocket.isChecked,
+            useTls = binding.swBrokerTls.isChecked,
+            username = binding.etBrokerUsername.text.toString().trim(),
+            // Blank field keeps the already-provisioned password: the repository only
+            // writes a non-blank password to the Keystore.
+            password = typedPassword.ifBlank { settingsRepository.brokerSettings().password },
+        )
+
+        binding.btnSaveSettings.isEnabled = false
+        showApplyStatus(getString(R.string.apply_testing), pending = true, error = false)
+
+        val mqtt = MqttManager.getInstance(this)
+        // 1. Properly disconnect from the OLD broker first (retained presence goes offline).
+        mqtt.disconnect {
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                // 2. Save the new settings after the old presence is offline.
+                if (!settingsRepository.save(newSettings)) {
+                    binding.tilBrokerPassword.error = getString(R.string.error_password_store)
+                    finishApply(getString(R.string.apply_failed_store), error = true)
+                    mqtt.connect()
+                    return@runOnUiThread
+                }
+                binding.etBrokerPassword.setText("")
+                // 3. Reconnect against the new broker and wait for the verdict.
+                awaitConnectionResult(mqtt)
+                mqtt.connect()
+            }
+        }
+    }
+
+    private fun awaitConnectionResult(mqtt: MqttManager) {
+        val listener: (ConnectionStatus) -> Unit = { status ->
+            runOnUiThread {
+                when (status) {
+                    // STATION_OFFLINE still means the broker link is up; the station row says the rest.
+                    ConnectionStatus.CONNECTED, ConnectionStatus.STATION_OFFLINE ->
+                        finishApply(getString(R.string.apply_connected), error = false)
+                    ConnectionStatus.BROKER_REJECTED ->
+                        finishApply(getString(R.string.apply_failed_rejected), error = true)
+                    ConnectionStatus.OFFLINE, ConnectionStatus.RECONNECTING -> Unit
+                }
+            }
+        }
+        applyListener = listener
+        // addConnectionStatusListener fires once with the current (OFFLINE) status: ignored above.
+        mqtt.addConnectionStatusListener(listener)
+        ticker.postDelayed(applyTimeout, APPLY_TIMEOUT_MS)
+    }
+
+    private fun finishApply(message: String, error: Boolean) {
+        ticker.removeCallbacks(applyTimeout)
+        applyListener?.let { MqttManager.getInstance(this).removeConnectionStatusListener(it) }
+        applyListener = null
+        if (!::binding.isInitialized || isFinishing || isDestroyed) return
+        showApplyStatus(message, pending = false, error = error)
+        binding.btnSaveSettings.isEnabled = true
+    }
+
+    private fun showApplyStatus(message: String, pending: Boolean, error: Boolean) {
+        binding.layoutApplyStatus.visibility = View.VISIBLE
+        binding.progressApply.visibility = if (pending) View.VISIBLE else View.GONE
+        binding.tvApplyStatus.text = message
+        // Pending = primary text, success = green, failure = danger red.
+        val colour = when {
+            error -> R.color.danger
+            pending -> R.color.text_primary
+            else -> R.color.success
+        }
+        binding.tvApplyStatus.setTextColor(getColor(colour))
     }
 
     /**
@@ -258,6 +333,8 @@ class SettingsActivity : SessionActivity() {
     override fun onDestroy() {
         super.onDestroy()
         ticker.removeCallbacks(lockoutTick)
+        ticker.removeCallbacks(applyTimeout)
+        applyListener?.let { MqttManager.getInstance(this).removeConnectionStatusListener(it) }
         OperatorSessionHolder.removeListener(sessionListener)
         MqttManager.getInstance(this).removeConnectionStatusListener(connectionStatusListener)
     }

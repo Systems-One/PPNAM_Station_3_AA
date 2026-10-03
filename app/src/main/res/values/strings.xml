@@ -64,6 +64,18 @@
     <string name="label_version">Version</string>
     <string name="label_device_id">Device ID</string>
     <string name="label_signed_in_as">Signed in as</string>
+    <string name="section_session_policy">Session</string>
+    <string name="hint_auto_logout_minutes">Auto sign-out (minutes, 0 = never)</string>
+    <string name="error_auto_logout_minutes">Enter 0–1440</string>
+    <string name="error_host_required">Enter the broker host</string>
+    <string name="error_port_invalid">Enter a port from 1 to 65535</string>
+    <string name="error_password_store">Could not store the password securely</string>
+    <string name="btn_test_apply">Test &amp; Apply</string>
+    <string name="apply_testing">Testing connection…</string>
+    <string name="apply_connected">Connected — settings saved</string>
+    <string name="apply_failed_timeout">Could not reach the broker. Settings were saved — check the host, port and TLS, then try again.</string>
+    <string name="apply_failed_rejected">The broker rejected the username or password. Settings were saved — check them and try again.</string>
+    <string name="apply_failed_store">Nothing was changed: the password could not be stored securely.</string>
 
     <!-- Supervisor PIN gate -->
     <string name="pin_error_blank">Enter the supervisor PIN.</string>
