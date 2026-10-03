@@ -64,7 +64,7 @@
                     android:layout_height="16dp"
                     android:contentDescription="Log out"
                     android:src="@drawable/ic_logout"
-                    app:tint="@color/primary_action" />
+                    app:tint="@color/brand_tint" />
 
                 <TextView
                     android:id="@+id/tvOperator"

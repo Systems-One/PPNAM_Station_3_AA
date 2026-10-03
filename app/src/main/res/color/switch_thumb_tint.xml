@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:color="@color/text_primary" android:state_checked="true" />
+    <!-- Crimson thumb on the light-tint track: 6:1, where the white thumb on crimson was 1.5:1
+         against the dark card. -->
+    <item android:color="@color/brand_field" android:state_checked="true" />
     <item android:color="@color/text_muted" />
 </selector>
