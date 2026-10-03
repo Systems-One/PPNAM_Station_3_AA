@@ -8,6 +8,7 @@ import android.view.MenuItem
 import android.view.View
 import androidx.activity.addCallback
 import androidx.lifecycle.Lifecycle
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.mitas.ppnam.station3aa.databinding.ActivitySettingsBinding
 
 class SettingsActivity : SessionActivity() {
@@ -227,9 +228,9 @@ class SettingsActivity : SessionActivity() {
             ConnectionStatus.RECONNECTING ->
                 binding.pillBroker.setAppearance(blue, "Reconnecting")
             ConnectionStatus.OFFLINE ->
-                binding.pillBroker.setAppearance(red, "Disconnected")
+                binding.pillBroker.setAppearance(red, "Offline")
             ConnectionStatus.BROKER_REJECTED ->
-                binding.pillBroker.setAppearance(red, "Credential rejected")
+                binding.pillBroker.setAppearance(red, "Broker login rejected")
         }
 
         // With the broker down, the retained presence value is stale rather than false — saying
@@ -256,7 +257,7 @@ class SettingsActivity : SessionActivity() {
             if (session.role.isNotBlank()) "${session.operatorName} · ${session.role}"
             else session.operatorName
         binding.btnLogOut.setOnClickListener {
-            androidx.appcompat.app.AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
+            MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.logout_dialog_title))
                 .setMessage(getString(R.string.logout_dialog_message))
                 .setPositiveButton(getString(R.string.btn_log_out)) { _, _ ->

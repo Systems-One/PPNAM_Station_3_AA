@@ -10,7 +10,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.ArrayAdapter
 import androidx.activity.addCallback
-import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
 import com.mitas.ppnam.station3aa.databinding.ActivityLoginBinding
 
@@ -223,7 +223,7 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun showExitDialog() {
-        AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
+        MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.exit_dialog_title))
             .setMessage(getString(R.string.exit_dialog_message))
             .setPositiveButton(getString(R.string.exit_dialog_close)) { _, _ -> finishAffinity() }

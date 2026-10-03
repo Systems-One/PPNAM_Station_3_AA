@@ -340,20 +340,26 @@
                                 android:textColor="@color/text_primary_dark" />
                         </com.google.android.material.textfield.TextInputLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/swBrokerWebSocket"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
                             android:text="@string/label_broker_websocket"
-                            android:textColor="@color/text_primary_dark" />
+                            android:textColor="@color/text_primary_dark"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackDecorationTint="@color/border_primary"
+                            app:trackTint="@color/switch_track_tint" />
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/swBrokerTls"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="@string/label_broker_tls"
-                            android:textColor="@color/text_primary_dark" />
+                            android:textColor="@color/text_primary_dark"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackDecorationTint="@color/border_primary"
+                            app:trackTint="@color/switch_track_tint" />
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilBrokerUsername"

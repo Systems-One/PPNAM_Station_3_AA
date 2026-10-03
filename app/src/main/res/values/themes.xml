@@ -26,25 +26,54 @@
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_muted</item>
 
-        <!-- Status Bar -->
-        <item name="android:statusBarColor">@color/window_background</item>
+        <!-- System bars: card-coloured status strip like Station 2/4's AppScaffold; the
+             navigation bar takes the window colour on every screen (audit static-10). -->
+        <item name="android:statusBarColor">@color/card_background</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">@color/window_background</item>
+        <item name="android:windowLightNavigationBar">false</item>
 
-        <!-- Without this, every AlertDialog.Builder(context) call renders on the platform's
-             default light dialog surface while inheriting this theme's light textColorPrimary/
-             Secondary (meant for the dark app background) - text ends up near-invisible
-             (light-on-white). -->
+        <!-- One dialog style for the whole suite: Material 3 rounded, inset, neutral dismiss and
+             red destructive confirm (Station 2's look). -->
+        <item name="materialAlertDialogTheme">@style/AppAlertDialogTheme</item>
         <item name="alertDialogTheme">@style/AppAlertDialogTheme</item>
         <item name="android:alertDialogTheme">@style/AppAlertDialogTheme</item>
     </style>
 
     <style name="Theme.SysOneScanner" parent="Base.Theme.SysOneScanner" />
 
-    <style name="AppAlertDialogTheme" parent="ThemeOverlay.AppCompat.Dialog.Alert">
-        <item name="android:windowBackground">@color/card_background</item>
+    <style name="AppAlertDialogTheme" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorSurface">@color/card_background</item>
+        <item name="colorSurfaceContainerHigh">@color/card_background</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorOnSurfaceVariant">@color/text_muted</item>
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_muted</item>
-        <item name="colorAccent">@color/primary_action</item>
+        <item name="alertDialogStyle">@style/MaterialAlertDialog.SysOneScanner</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.SysOneScanner.DialogButton.Destructive</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.SysOneScanner.DialogButton.Neutral</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.SysOneScanner.DialogButton.Neutral</item>
+    </style>
+
+    <style name="MaterialAlertDialog.SysOneScanner" parent="MaterialAlertDialog.Material3">
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.SysOneScanner.Dialog</item>
+        <item name="backgroundInsetStart">24dp</item>
+        <item name="backgroundInsetEnd">24dp</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.SysOneScanner.Dialog" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">28dp</item>
+    </style>
+
+    <style name="Widget.SysOneScanner.DialogButton.Destructive" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/danger</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+
+    <style name="Widget.SysOneScanner.DialogButton.Neutral" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textAllCaps">false</item>
     </style>
 
     <!-- Optical sizing: large text wants slightly negative tracking (letters read too
@@ -52,6 +81,7 @@
          default, which is tuned for body-size text, not a 20sp+ toolbar title. -->
     <style name="TextAppearance.SysOneScanner.ToolbarTitle" parent="TextAppearance.Material3.TitleLarge">
         <item name="android:letterSpacing">-0.015</item>
+        <item name="android:textSize">18sp</item>
         <item name="android:textColor">@color/text_primary</item>
     </style>
 
