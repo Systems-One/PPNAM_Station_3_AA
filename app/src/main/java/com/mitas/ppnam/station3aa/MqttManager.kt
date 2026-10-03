@@ -358,6 +358,10 @@ class MqttManager private constructor(context: Context) {
 
     fun disconnect(onComplete: () -> Unit = {}) {
         wantsConnection.set(false)
+        // A stale "broker rejected" from the previous settings must not be replayed to status
+        // listeners registered before the next connect() (Test & Apply would report an instant
+        // false rejection).
+        brokerRejectedCredential = false
         statusHandler.removeCallbacks(reconnectRunnable)
         notifyConnectionStatus()
         if (!isConnected()) {

@@ -47,7 +47,14 @@ class SettingsActivity : SessionActivity() {
     private var lockoutShowing = false
 
     private var applyListener: ((ConnectionStatus) -> Unit)? = null
-    private val applyTimeout = Runnable { finishApply(getString(R.string.apply_failed_timeout), error = true) }
+    private val applyTimeout = Runnable {
+        finishApply(getString(R.string.apply_failed_timeout, applyHost, applyPort), error = true)
+    }
+
+    /** Set synchronously when Test & Apply starts, cleared by [finishApply]: blocks re-entry. */
+    private var applying = false
+    private var applyHost = ""
+    private var applyPort = 0
 
     private companion object {
         /** 10 s like every other round trip, plus MqttManager's 1.5 s status debounce. */
@@ -108,6 +115,7 @@ class SettingsActivity : SessionActivity() {
      * the session instead of being relaunched to Home.
      */
     private fun testAndApply() {
+        if (applying) return
         binding.tilBrokerHost.error = null
         binding.tilBrokerPort.error = null
         binding.tilBrokerPassword.error = null
@@ -147,23 +155,37 @@ class SettingsActivity : SessionActivity() {
             password = typedPassword.ifBlank { settingsRepository.brokerSettings().password },
         )
 
+        // Everything below is asynchronous: mark the run as started first so a second press (or a
+        // held Enter) cannot interleave another disconnect/connect.
+        applying = true
+        applyHost = host
+        applyPort = port
         binding.btnSaveSettings.isEnabled = false
         showApplyStatus(getString(R.string.apply_testing), pending = true, error = false)
 
+        // Save first: whatever happens to this screen next, the stored settings are the new ones
+        // and the reconnect below uses them. (The retained "offline" presence still goes to the
+        // OLD broker, because the disconnect publishes on the client that is already connected.)
+        if (!settingsRepository.save(newSettings)) {
+            binding.tilBrokerPassword.error = getString(R.string.error_password_store)
+            finishApply(getString(R.string.apply_failed_store), error = true)
+            return
+        }
+        binding.etBrokerPassword.setText("")
+
         val mqtt = MqttManager.getInstance(this)
-        // 1. Properly disconnect from the OLD broker first (retained presence goes offline).
+        // The 11.5 s budget starts now, not when the disconnect callback fires.
+        ticker.postDelayed(applyTimeout, APPLY_TIMEOUT_MS)
         mqtt.disconnect {
             runOnUiThread {
-                if (isFinishing || isDestroyed) return@runOnUiThread
-                // 2. Save the new settings after the old presence is offline.
-                if (!settingsRepository.save(newSettings)) {
-                    binding.tilBrokerPassword.error = getString(R.string.error_password_store)
-                    finishApply(getString(R.string.apply_failed_store), error = true)
+                if (isFinishing || isDestroyed) {
+                    // The screen went away mid-apply: still reconnect, or MQTT would stay off
+                    // (disconnect() cleared wantsConnection) until the app is restarted.
+                    applyListener?.let { mqtt.removeConnectionStatusListener(it) }
+                    applyListener = null
                     mqtt.connect()
                     return@runOnUiThread
                 }
-                binding.etBrokerPassword.setText("")
-                // 3. Reconnect against the new broker and wait for the verdict.
                 awaitConnectionResult(mqtt)
                 mqtt.connect()
             }
@@ -184,12 +206,13 @@ class SettingsActivity : SessionActivity() {
             }
         }
         applyListener = listener
-        // addConnectionStatusListener fires once with the current (OFFLINE) status: ignored above.
+        // addConnectionStatusListener replays the current status once (OFFLINE after the
+        // disconnect, and BROKER_REJECTED can no longer be stale): ignored above.
         mqtt.addConnectionStatusListener(listener)
-        ticker.postDelayed(applyTimeout, APPLY_TIMEOUT_MS)
     }
 
     private fun finishApply(message: String, error: Boolean) {
+        applying = false
         ticker.removeCallbacks(applyTimeout)
         applyListener?.let { MqttManager.getInstance(this).removeConnectionStatusListener(it) }
         applyListener = null
@@ -218,7 +241,7 @@ class SettingsActivity : SessionActivity() {
      */
     private fun updateDiagnostics(status: ConnectionStatus) {
         val green = getColor(R.color.success)
-        val blue = getColor(R.color.primary_action)
+        val blue = getColor(R.color.brand_tint)
         val red = getColor(R.color.danger)
         val muted = getColor(R.color.text_muted)
 
@@ -278,6 +301,8 @@ class SettingsActivity : SessionActivity() {
     }
 
     private fun submitPin() {
+        // Hardware Enter / IME Done reach here even while the lockout has disabled Unlock.
+        if (!binding.btnUnlock.isEnabled) return
         val outcome = pinGate.submit(binding.etPin.text?.toString().orEmpty(), System.currentTimeMillis())
         settingsRepository.savePinGateState(pinGate.failedAttempts, pinGate.lockedOutUntilMs)
         when (outcome) {

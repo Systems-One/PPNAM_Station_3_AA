@@ -73,7 +73,7 @@
     <string name="btn_test_apply">Test &amp; Apply</string>
     <string name="apply_testing">Testing connection…</string>
     <string name="apply_connected">Connected — settings saved</string>
-    <string name="apply_failed_timeout">Could not reach the broker. Settings were saved — check the host, port and TLS, then try again.</string>
+    <string name="apply_failed_timeout">Saved, but could not connect to %1$s:%2$d. Check the broker settings.</string>
     <string name="apply_failed_rejected">The broker rejected the username or password. Settings were saved — check them and try again.</string>
     <string name="apply_failed_store">Nothing was changed: the password could not be stored securely.</string>
 
