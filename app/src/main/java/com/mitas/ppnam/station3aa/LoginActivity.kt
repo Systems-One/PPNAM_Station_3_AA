@@ -194,6 +194,7 @@ class LoginActivity : AppCompatActivity() {
     private fun setLoggingIn(inFlight: Boolean) {
         loginInFlight = inFlight
         binding.btnLogin.isEnabled = !inFlight
+        if (!inFlight) binding.btnLogin.releasePressScale()
         binding.etUsername.isEnabled = !inFlight
         binding.etPassword.isEnabled = !inFlight
         binding.btnLogin.text = if (inFlight) "" else getString(R.string.btn_log_in)

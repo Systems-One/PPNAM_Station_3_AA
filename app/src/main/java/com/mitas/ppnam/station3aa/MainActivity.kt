@@ -288,6 +288,7 @@ class MainActivity : SessionActivity() {
         if (!::binding.isInitialized || !binding.scrollMasterBatch.isShown) return
         val available = canScan()
         binding.btnSelectSource.isEnabled = available
+        if (available) binding.btnSelectSource.releasePressScale()
         binding.etScanValue.isEnabled = connectionStatus == ConnectionStatus.CONNECTED && !scanForbidden
         binding.btnRetryScan.isEnabled = available
 
