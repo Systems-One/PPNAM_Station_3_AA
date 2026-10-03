@@ -15,14 +15,34 @@ class LoginErrorMessagesTest {
     }
 
     @Test
-    fun `a rejected start (unknown username) is incorrect credentials`() {
-        assertEquals(LoginErrorKind.INVALID_CREDENTIALS, LoginErrorMessages.kindFor(AuthStage.START, "unknown_user"))
-        assertEquals(LoginErrorKind.INVALID_CREDENTIALS, LoginErrorMessages.kindFor(AuthStage.START, ""))
+    fun `only the credential codes are incorrect credentials`() {
+        for (code in listOf("scram_proof_invalid", "scram_client_final_invalid", "authentication_failed", " Authentication_Failed ")) {
+            assertEquals(LoginErrorKind.INVALID_CREDENTIALS, LoginErrorMessages.kindFor(AuthStage.PROOF, code))
+            assertEquals(LoginErrorKind.INVALID_CREDENTIALS, LoginErrorMessages.kindFor(AuthStage.START, code))
+        }
+    }
+
+    @Test
+    fun `any other station code is a refusal that quotes the code`() {
+        assertEquals(LoginErrorKind.STATION_REFUSED, LoginErrorMessages.kindFor(AuthStage.START, "unknown_user"))
+        assertEquals(LoginErrorKind.STATION_REFUSED, LoginErrorMessages.kindFor(AuthStage.PROOF, "authentication_unavailable"))
+        assertEquals(LoginErrorKind.STATION_REFUSED, LoginErrorMessages.kindFor(AuthStage.START, "scram_challenge_expired"))
+        assertEquals(
+            "scram_challenge_expired",
+            LoginErrorMessages.refusalCode(AuthFailure(AuthStage.START, " SCRAM_challenge_expired", "x")),
+        )
+    }
+
+    @Test
+    fun `a blank code gets the generic wording`() {
+        assertEquals(LoginErrorKind.STATION_ERROR, LoginErrorMessages.kindFor(AuthStage.START, ""))
+        assertEquals(LoginErrorKind.STATION_ERROR, LoginErrorMessages.kindFor(AuthStage.PROOF, "  "))
     }
 
     @Test
     fun `a rejected badge is badge unknown`() {
-        assertEquals(LoginErrorKind.BADGE_UNKNOWN, LoginErrorMessages.kindFor(AuthStage.BADGE, "badge_unknown"))
+        assertEquals(LoginErrorKind.BADGE_UNKNOWN, LoginErrorMessages.kindFor(AuthStage.BADGE, "badge_rejected"))
+        assertEquals(LoginErrorKind.STATION_REFUSED, LoginErrorMessages.kindFor(AuthStage.BADGE, "station_unavailable"))
         assertEquals(LoginErrorKind.BADGE_UNKNOWN, LoginErrorMessages.kindFor(AuthStage.BADGE, ""))
     }
 
@@ -36,10 +56,10 @@ class LoginErrorMessagesTest {
     }
 
     @Test
-    fun `protocol-level codes are never blamed on the operator`() {
-        assertEquals(LoginErrorKind.STATION_ERROR, LoginErrorMessages.kindFor(AuthStage.PROOF, "timestamp_stale"))
-        assertEquals(LoginErrorKind.STATION_ERROR, LoginErrorMessages.kindFor(AuthStage.START, "message_id_reused"))
-        assertEquals(LoginErrorKind.STATION_ERROR, LoginErrorMessages.kindFor(AuthStage.BADGE, "invalid_envelope"))
+    fun `protocol-level codes are refusals, never wrong credentials`() {
+        assertEquals(LoginErrorKind.STATION_REFUSED, LoginErrorMessages.kindFor(AuthStage.PROOF, "timestamp_stale"))
+        assertEquals(LoginErrorKind.STATION_REFUSED, LoginErrorMessages.kindFor(AuthStage.START, "message_id_reused"))
+        assertEquals(LoginErrorKind.STATION_REFUSED, LoginErrorMessages.kindFor(AuthStage.BADGE, "invalid_envelope"))
     }
 
     @Test

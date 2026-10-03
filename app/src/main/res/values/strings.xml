@@ -33,6 +33,7 @@
     <string name="login_error_badge_unknown">Badge not recognised. Try again or log in with your username.</string>
     <string name="login_error_timeout">Station 3 did not respond. Check the station and retry.</string>
     <string name="login_error_not_connected">Not connected to the broker. Check Settings and retry.</string>
+    <string name="login_error_refused">Login was refused by the station (%1$s). Ask a supervisor.</string>
     <string name="login_error_station">Station 3 could not complete the login. Try again.</string>
     <!-- Forced sign-out reasons, shown once on the login screen -->
     <plurals name="signed_out_inactivity">

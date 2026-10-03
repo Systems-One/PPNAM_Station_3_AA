@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.ArrayAdapter
 import androidx.activity.addCallback
+import androidx.core.widget.addTextChangedListener
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
 import com.mitas.ppnam.station3aa.databinding.ActivityLoginBinding
@@ -120,6 +121,8 @@ class LoginActivity : AppCompatActivity() {
         operatorAdapter = ArrayAdapter(this, R.layout.item_operator_dropdown, OperatorDirectory.cached.toMutableList())
         binding.etUsername.setAdapter(operatorAdapter)
         // The row shows "Display Name (username)"; the field must hold just the username.
+        // A stale "Incorrect username or password" must not outlive the field it is about.
+        binding.etUsername.addTextChangedListener { binding.tvLoginError.visibility = View.GONE }
         binding.etUsername.setOnItemClickListener { _, _, position, _ ->
             operatorAdapter.getItem(position)?.let { binding.etUsername.setText(it.username, false) }
             binding.etPassword.requestFocus()
@@ -179,7 +182,14 @@ class LoginActivity : AppCompatActivity() {
             .onFailure { e ->
                 setLoggingIn(false)
                 android.util.Log.w("LoginActivity", "Login failed: ${e.message}")
-                showError(getString(loginErrorText(LoginErrorMessages.kindFor(e))))
+                val kind = LoginErrorMessages.kindFor(e)
+                showError(
+                    if (kind == LoginErrorKind.STATION_REFUSED) {
+                        getString(R.string.login_error_refused, LoginErrorMessages.refusalCode(e))
+                    } else {
+                        getString(loginErrorText(kind))
+                    },
+                )
             }
     }
 
@@ -188,7 +198,7 @@ class LoginActivity : AppCompatActivity() {
         LoginErrorKind.BADGE_UNKNOWN -> R.string.login_error_badge_unknown
         LoginErrorKind.TIMEOUT -> R.string.login_error_timeout
         LoginErrorKind.NOT_CONNECTED -> R.string.login_error_not_connected
-        LoginErrorKind.STATION_ERROR -> R.string.login_error_station
+        LoginErrorKind.STATION_REFUSED, LoginErrorKind.STATION_ERROR -> R.string.login_error_station
     }
 
     private fun setLoggingIn(inFlight: Boolean) {
