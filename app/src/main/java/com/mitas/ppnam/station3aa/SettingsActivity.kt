@@ -49,6 +49,9 @@ class SettingsActivity : SessionActivity() {
     private var applyListener: ((ConnectionStatus) -> Unit)? = null
     private val applyTimeout = Runnable {
         finishApply(getString(R.string.apply_failed_timeout, applyHost, applyPort), error = true)
+        // A hung disconnect must never strand the handheld offline.
+        val mqtt = MqttManager.getInstance(this)
+        if (!mqtt.isConnected() && !mqtt.isConnectAttemptInFlight()) mqtt.connect()
     }
 
     /** Set synchronously when Test & Apply starts, cleared by [finishApply]: blocks re-entry. */
@@ -178,16 +181,20 @@ class SettingsActivity : SessionActivity() {
         ticker.postDelayed(applyTimeout, APPLY_TIMEOUT_MS)
         mqtt.disconnect {
             runOnUiThread {
-                if (isFinishing || isDestroyed) {
-                    // The screen went away mid-apply: still reconnect, or MQTT would stay off
-                    // (disconnect() cleared wantsConnection) until the app is restarted.
+                if (isFinishing || isDestroyed || !applying) {
+                    // The screen went away mid-apply, or the deadline already fired (its fallback
+                    // may have connected; a late disconnect callback must not tear that down):
+                    // still reconnect, or MQTT would stay off (disconnect() cleared
+                    // wantsConnection) until the app is restarted.
                     applyListener?.let { mqtt.removeConnectionStatusListener(it) }
                     applyListener = null
                     mqtt.connect()
                     return@runOnUiThread
                 }
                 awaitConnectionResult(mqtt)
-                mqtt.connect()
+                // force: an attempt that was in flight against the old settings is abandoned,
+                // otherwise connect()'s isConnecting guard would swallow this one.
+                mqtt.connect(force = true)
             }
         }
     }
