@@ -122,13 +122,14 @@ class AuthClient(context: Context) {
     /**
      * Fetches the login dropdown. No credentials and no operatorSessionId — this runs before
      * login. A fresh messageId each call, so the station returns a current list rather than a
-     * stored replay. On success the list also becomes [OperatorDirectory.cached].
+     * stored replay. On success the list also becomes [OperatorDirectory.cached] and is persisted
+     * for the next launch.
      */
     fun requestOperatorList(onResult: (Result<List<OperatorEntry>>) -> Unit) {
         val payload = Schema41.envelope(Schema41.newMessageId("operator-list"), deviceId())
         request("operator_list_requested", "operator_list", payload, AuthStage.OPERATOR_LIST) { result ->
             onResult(result.map { response ->
-                OperatorDirectory.parse(response).also { OperatorDirectory.update(it) }
+                OperatorDirectory.parse(response).also { OperatorDirectory.update(appContext, it) }
             })
         }
     }
