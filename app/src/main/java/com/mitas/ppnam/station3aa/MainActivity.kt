@@ -40,6 +40,8 @@ class MainActivity : SessionActivity() {
     private var statusIsError = false
     private var statusIsNotice = false
     private val mainHandler = Handler(Looper.getMainLooper())
+    /** Suite rule S3: the same value refused locally again within 1.5 s plays nothing. */
+    private val refusals = LocalRefusalDebounce(nowMs = SystemClock::elapsedRealtime)
     /** elapsedRealtime when the source card appeared, or [SourceCardPolicy.NOT_SHOWN]. */
     private var sourceShownAtMs = SourceCardPolicy.NOT_SHOWN
     private val hideSourceCard = Runnable { hideSource() }
@@ -100,7 +102,7 @@ class MainActivity : SessionActivity() {
                 // A user badge (Account Management EPC prefix) is never a source pallet.
                 ReadVerdict.BADGE -> {
                     runOnUiThread {
-                        ScanFeedback.fail(this@MainActivity)
+                        ScanFeedback.play(this@MainActivity, refusals.refuse(data))
                         Toast.makeText(this@MainActivity, R.string.user_badge_not_source, Toast.LENGTH_SHORT).show()
                     }
                     return
@@ -197,12 +199,12 @@ class MainActivity : SessionActivity() {
         val pendingValue = if (workflow.isScanPending) lastScanValue else null
         val scanValue = when (val decision = ScanSoundPolicy.forSubmit(raw, canScan(), pendingValue)) {
             SubmitDecision.Blocked, SubmitDecision.Repeat -> {
-                ScanFeedback.play(this, decision.sound)
+                ScanFeedback.play(this, decision.sound?.let { refusals.refuse(raw.orEmpty()) })
                 updateScanAvailability()
                 return
             }
             SubmitDecision.Invalid -> {
-                ScanFeedback.play(this, decision.sound)
+                ScanFeedback.play(this, refusals.refuse(raw.orEmpty()))
                 showScanStatus(getString(R.string.scan_invalid), pending = false, retry = false)
                 return
             }
@@ -213,7 +215,7 @@ class MainActivity : SessionActivity() {
 
         val sent = workflow.sourceScan(scanValue) { outcome -> onScanOutcome(outcome) }
         if (!sent) {
-            ScanFeedback.play(this, SubmitDecision.Busy.sound)
+            ScanFeedback.play(this, refusals.refuse(scanValue))
             showScanStatus(getString(R.string.scan_busy), pending = true, retry = false)
             return
         }
