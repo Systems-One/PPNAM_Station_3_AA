@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Filled primary buttons (Log In, Select Source, Test & Apply). A plain @color backgroundTint
+     replaced Material's state list, so a disabled button kept its full crimson fill and only its
+     label dimmed: Select Source looked pressable while the broker or Station 3 was offline
+     (visual critique 2026-11-06, P2-4). -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/border_primary" android:state_enabled="false" />
+    <item android:color="@color/primary_action" />
+</selector>

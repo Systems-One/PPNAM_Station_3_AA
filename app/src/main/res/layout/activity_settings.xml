@@ -236,7 +236,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:hint="PIN"
-                            app:boxStrokeColor="@color/outline_dark"
+                            app:boxStrokeColor="@color/text_field_stroke"
                             app:boxStrokeErrorColor="@color/danger"
                             app:errorEnabled="true"
                             app:errorTextColor="@color/danger"
@@ -304,7 +304,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
                             android:hint="@string/hint_broker_host"
-                            app:boxStrokeColor="@color/outline_dark"
+                            app:boxStrokeColor="@color/text_field_stroke"
                             app:boxStrokeErrorColor="@color/danger"
                             app:errorTextColor="@color/danger"
                             app:hintTextColor="@color/text_secondary_dark">
@@ -326,7 +326,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
                             android:hint="@string/hint_broker_port"
-                            app:boxStrokeColor="@color/outline_dark"
+                            app:boxStrokeColor="@color/text_field_stroke"
                             app:boxStrokeErrorColor="@color/danger"
                             app:errorTextColor="@color/danger"
                             app:hintTextColor="@color/text_secondary_dark">
@@ -369,7 +369,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
                             android:hint="@string/hint_broker_username"
-                            app:boxStrokeColor="@color/outline_dark"
+                            app:boxStrokeColor="@color/text_field_stroke"
                             app:hintTextColor="@color/text_secondary_dark">
 
                             <com.google.android.material.textfield.TextInputEditText
@@ -389,7 +389,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
                             android:hint="@string/hint_broker_password"
-                            app:boxStrokeColor="@color/outline_dark"
+                            app:boxStrokeColor="@color/text_field_stroke"
                             app:boxStrokeErrorColor="@color/danger"
                             app:errorTextColor="@color/danger"
                             app:hintTextColor="@color/text_secondary_dark"
@@ -421,7 +421,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
                             android:hint="@string/hint_auto_logout_minutes"
-                            app:boxStrokeColor="@color/outline_dark"
+                            app:boxStrokeColor="@color/text_field_stroke"
                             app:boxStrokeErrorColor="@color/danger"
                             app:errorTextColor="@color/danger"
                             app:hintTextColor="@color/text_secondary_dark">
@@ -474,7 +474,7 @@
                     android:layout_height="56dp"
                     android:layout_marginTop="12dp"
                     android:text="@string/btn_test_apply"
-                    app:backgroundTint="@color/primary_action"
+                    app:backgroundTint="@color/primary_button_background"
                     app:cornerRadius="14dp" />
 
             </LinearLayout>
@@ -546,6 +546,8 @@
                             android:layout_height="56dp"
                             android:layout_marginTop="12dp"
                             android:text="@string/btn_log_out"
+                            android:textAllCaps="false"
+                            android:letterSpacing="0"
                             android:textColor="@color/danger"
                             app:cornerRadius="14dp"
                             app:strokeColor="@color/danger" />

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Outlined text-field border. A plain boxStrokeColor only sets the focused colour (here the
+     near-invisible border_primary, 1.35:1); resting fields fell back to a stroke darker than the
+     card at about 1.15:1. These meet the 3:1 non-text minimum on card_background
+     (visual critique 2026-11-06, P2-5). -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/border_primary" android:state_enabled="false" />
+    <item android:color="@color/text_muted" android:state_focused="true" />
+    <item android:color="@color/text_muted" android:state_hovered="true" />
+    <item android:color="@color/status_inactive" />
+</selector>

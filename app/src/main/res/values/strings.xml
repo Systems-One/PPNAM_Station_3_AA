@@ -87,6 +87,8 @@
     <string name="pin_error_lockout">Too many attempts. Try again in %1$ds.</string>
 
     <string name="user_badge_not_source">That is a user badge, not a source pallet</string>
-    <string name="station_offline_title">MAIN STATION OFFLINE</string>
-    <string name="station_offline_message">Please wait for the main station to reconnect...</string>
+    <!-- Named "Station 3", as on the connection pill and the scan blocker, rather than the
+         generic "main station" (visual critique 2026-11-06, P1-2). -->
+    <string name="station_offline_title">STATION 3 OFFLINE</string>
+    <string name="station_offline_message">Wait for Station 3 to reconnect. Scanning resumes when it comes back.</string>
 </resources>

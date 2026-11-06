@@ -13,6 +13,10 @@
              colorOnSurface) renders near-invisible on this dark palette. -->
         <item name="colorOnSurface">@color/text_primary</item>
         <item name="colorOnSurfaceVariant">@color/text_muted</item>
+        <!-- Flat palette: the dark theme's elevation overlay tinted raised surfaces (the main
+             header card, dialogs) to an off-palette #1A2030 instead of card_background
+             (visual critique 2026-11-06, P2-6). -->
+        <item name="elevationOverlayEnabled">false</item>
 
         <!-- Primary / Accent -->
         <item name="colorPrimary">@color/primary_action</item>
