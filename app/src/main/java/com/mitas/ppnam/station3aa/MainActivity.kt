@@ -252,7 +252,22 @@ class MainActivity : SessionActivity() {
             source.batch?.let { "Batch $it" },
         ).joinToString(" · ")
         binding.cardSource.visibility = View.VISIBLE
+        revealSourceCard()
         scheduleSourceHide(shownAtMs = SystemClock.elapsedRealtime())
+    }
+
+    /**
+     * The card sits below the scan form, so on a 1080x1920 handheld the kg and pallet lines
+     * (or, with a long description, everything under the product code) landed below the fold
+     * and the card could hide itself after 15 s without them ever being seen (visual critique
+     * 2026-11-06, P1-1). Scroll it fully into view once it has been laid out.
+     */
+    private fun revealSourceCard() {
+        binding.cardSource.post {
+            if (binding.cardSource.visibility == View.VISIBLE) {
+                binding.scrollMasterBatch.smoothScrollTo(0, binding.cardSource.bottom)
+            }
+        }
     }
 
     /** Anchors the countdown to [shownAtMs] so a recreated activity does not restart the 15 s. */
@@ -274,7 +289,13 @@ class MainActivity : SessionActivity() {
         binding.layoutScanStatus.visibility = View.VISIBLE
         binding.progressScan.visibility = if (pending) View.VISIBLE else View.GONE
         binding.tvScanStatus.text = message
-        binding.tvScanStatus.setTextColor(getColor(if (error) R.color.danger else R.color.text_primary))
+        // A failed scan gets a red panel so it carries the same weight as the green "Source
+        // selected" card; a bare red line was easy to miss (visual critique 2026-11-06, P2-8).
+        // Text stays text_primary on the panel: danger on light_red is only 3.99:1.
+        val panelPadding = if (error) (12 * resources.displayMetrics.density).toInt() else 0
+        binding.layoutScanStatus.setBackgroundResource(if (error) R.drawable.bg_scan_status_error else 0)
+        binding.layoutScanStatus.setPadding(panelPadding, panelPadding, panelPadding, panelPadding)
+        binding.tvScanStatus.setTextColor(getColor(R.color.text_primary))
         binding.btnRetryScan.visibility = if (retry && lastScanValue != null) View.VISIBLE else View.GONE
     }
 

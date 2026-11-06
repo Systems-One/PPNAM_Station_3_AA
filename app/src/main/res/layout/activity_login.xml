@@ -102,7 +102,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="@string/hint_username"
-                        app:boxStrokeColor="@color/outline_dark"
+                        app:boxStrokeColor="@color/text_field_stroke"
                         app:endIconTint="@color/text_secondary_dark"
                         app:hintTextColor="@color/text_secondary_dark">
 
@@ -128,7 +128,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:hint="@string/hint_password"
-                        app:boxStrokeColor="@color/outline_dark"
+                        app:boxStrokeColor="@color/text_field_stroke"
                         app:endIconMode="password_toggle"
                         app:endIconTint="@color/text_secondary_dark"
                         app:hintTextColor="@color/text_secondary_dark">
@@ -154,16 +154,19 @@
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:text="@string/btn_log_in"
-                            app:backgroundTint="@color/primary_action"
+                            app:backgroundTint="@color/primary_button_background"
                             app:cornerRadius="14dp" />
 
+                        <!-- text_primary, not window_background: a near-black spinner on the
+                             button measured 1.78:1 and read as a stray dash
+                             (visual critique 2026-11-06, P2-3). -->
                         <ProgressBar
                             android:id="@+id/progressLogin"
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
                             android:layout_gravity="center"
                             android:elevation="8dp"
-                            android:indeterminateTint="@color/window_background"
+                            android:indeterminateTint="@color/text_primary"
                             android:visibility="gone" />
                     </FrameLayout>
 
