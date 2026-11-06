@@ -38,6 +38,7 @@ class MainActivity : SessionActivity() {
     private var lastScanValue: String? = null
     private val kgFormat = DecimalFormat("#,##0.###")
     private var statusIsError = false
+    private var statusIsNotice = false
     private val mainHandler = Handler(Looper.getMainLooper())
     /** elapsedRealtime when the source card appeared, or [SourceCardPolicy.NOT_SHOWN]. */
     private var sourceShownAtMs = SourceCardPolicy.NOT_SHOWN
@@ -49,6 +50,7 @@ class MainActivity : SessionActivity() {
         const val STATE_STATUS_TEXT = "status_text"
         const val STATE_STATUS_RETRY = "status_retry"
         const val STATE_STATUS_ERROR = "status_error"
+        const val STATE_STATUS_NOTICE = "status_notice"
         const val STATE_SOURCE_SHOWN_AT = "source_shown_at"
         const val STATE_SOURCE_DESCRIPTION_VISIBLE = "source_description_visible"
     }
@@ -221,7 +223,10 @@ class MainActivity : SessionActivity() {
                 RejectionKind.SIGN_IN_AGAIN -> Unit
                 RejectionKind.NOT_ALLOWED -> {
                     scanForbidden = true
-                    showScanStatus(outcome.reason.ifBlank { getString(R.string.scan_not_allowed) }, pending = false, retry = false)
+                    showScanStatus(
+                        outcome.reason.ifBlank { getString(R.string.scan_not_allowed) },
+                        pending = false, retry = false, notice = true,
+                    )
                 }
                 RejectionKind.SOURCE_REJECTED, RejectionKind.INVALID_REQUEST ->
                     showScanStatus(outcome.reason, pending = false, retry = false, error = true)
@@ -284,16 +289,29 @@ class MainActivity : SessionActivity() {
         binding.cardSource.visibility = View.GONE
     }
 
-    private fun showScanStatus(message: String, pending: Boolean, retry: Boolean, error: Boolean = false) {
+    private fun showScanStatus(
+        message: String,
+        pending: Boolean,
+        retry: Boolean,
+        error: Boolean = false,
+        notice: Boolean = false,
+    ) {
         statusIsError = error
+        statusIsNotice = notice && !error
         binding.layoutScanStatus.visibility = View.VISIBLE
         binding.progressScan.visibility = if (pending) View.VISIBLE else View.GONE
         binding.tvScanStatus.text = message
         // A failed scan gets a red panel so it carries the same weight as the green "Source
         // selected" card; a bare red line was easy to miss (visual critique 2026-11-06, P2-8).
         // Text stays text_primary on the panel: danger on light_red is only 3.99:1.
-        val panelPadding = if (error) (12 * resources.displayMetrics.density).toInt() else 0
-        binding.layoutScanStatus.setBackgroundResource(if (error) R.drawable.bg_scan_status_error else 0)
+        // A scan blocker gets an amber panel for the same reason (skill critique 2026-11-06, P2-3).
+        val panel = when {
+            statusIsError -> R.drawable.bg_scan_status_error
+            statusIsNotice -> R.drawable.bg_scan_status_notice
+            else -> 0
+        }
+        val panelPadding = if (panel != 0) (12 * resources.displayMetrics.density).toInt() else 0
+        binding.layoutScanStatus.setBackgroundResource(panel)
         binding.layoutScanStatus.setPadding(panelPadding, panelPadding, panelPadding, panelPadding)
         binding.tvScanStatus.setTextColor(getColor(R.color.text_primary))
         binding.btnRetryScan.visibility = if (retry && lastScanValue != null) View.VISIBLE else View.GONE
@@ -307,6 +325,7 @@ class MainActivity : SessionActivity() {
         outState.putString(STATE_STATUS_TEXT, binding.tvScanStatus.text?.toString())
         outState.putBoolean(STATE_STATUS_RETRY, binding.btnRetryScan.visibility == View.VISIBLE)
         outState.putBoolean(STATE_STATUS_ERROR, statusIsError)
+        outState.putBoolean(STATE_STATUS_NOTICE, statusIsNotice)
         outState.putLong(STATE_SOURCE_SHOWN_AT, sourceShownAtMs)
         outState.putBoolean(STATE_SOURCE_DESCRIPTION_VISIBLE, binding.tvSourceDescription.visibility == View.VISIBLE)
     }
@@ -328,6 +347,7 @@ class MainActivity : SessionActivity() {
                 pending = workflow.isScanPending,
                 retry = state.getBoolean(STATE_STATUS_RETRY),
                 error = state.getBoolean(STATE_STATUS_ERROR),
+                notice = state.getBoolean(STATE_STATUS_NOTICE),
             )
         }
     }
@@ -352,7 +372,7 @@ class MainActivity : SessionActivity() {
             else -> null
         }
         if (blocker != null) {
-            showScanStatus(blocker, pending = false, retry = false)
+            showScanStatus(blocker, pending = false, retry = false, notice = true)
         } else if (binding.tvScanStatus.text == getString(R.string.scan_unavailable_broker) ||
             binding.tvScanStatus.text == getString(R.string.scan_unavailable_station)
         ) {

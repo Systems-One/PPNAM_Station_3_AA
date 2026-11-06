@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Outlined text-field border. A plain boxStrokeColor only sets the focused colour (here the
      near-invisible border_primary, 1.35:1); resting fields fell back to a stroke darker than the
-     card at about 1.15:1. These meet the 3:1 non-text minimum on card_background
-     (visual critique 2026-11-06, P2-5). -->
+     card at about 1.15:1 (visual critique 2026-11-06, P2-5).
+     Values now follow the suite standard (consistency C1, Station 1's text_field_stroke.xml):
+     resting field_stroke (4.85:1 on card_background), focused brand_tint (9.17:1), so a focused
+     field carries the crimson identity like Station 1's carries its blue (skill critique
+     2026-11-06, P2-2). Every field using this list also sets app:cursorColor to brand_tint: the
+     outlined-box theme overlay drew the caret in brand_field crimson, 1.51:1 on the card
+     (skill critique 2026-11-06, P3-5). -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:color="@color/border_primary" android:state_enabled="false" />
-    <item android:color="@color/text_muted" android:state_focused="true" />
+    <item android:color="@color/brand_tint" android:state_focused="true" />
     <item android:color="@color/text_muted" android:state_hovered="true" />
-    <item android:color="@color/status_inactive" />
+    <item android:color="@color/field_stroke" />
 </selector>

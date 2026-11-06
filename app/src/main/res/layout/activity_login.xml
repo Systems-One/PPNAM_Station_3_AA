@@ -103,6 +103,7 @@
                         android:layout_height="wrap_content"
                         android:hint="@string/hint_username"
                         app:boxStrokeColor="@color/text_field_stroke"
+                        app:cursorColor="@color/brand_tint"
                         app:endIconTint="@color/text_secondary_dark"
                         app:hintTextColor="@color/text_secondary_dark">
 
@@ -129,6 +130,7 @@
                         android:layout_marginTop="16dp"
                         android:hint="@string/hint_password"
                         app:boxStrokeColor="@color/text_field_stroke"
+                        app:cursorColor="@color/brand_tint"
                         app:endIconMode="password_toggle"
                         app:endIconTint="@color/text_secondary_dark"
                         app:hintTextColor="@color/text_secondary_dark">
