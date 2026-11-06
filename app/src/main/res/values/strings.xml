@@ -89,6 +89,6 @@
     <string name="user_badge_not_source">That is a user badge, not a source pallet</string>
     <!-- Named "Station 3", as on the connection pill and the scan blocker, rather than the
          generic "main station" (visual critique 2026-11-06, P1-2). -->
-    <string name="station_offline_title">STATION 3 OFFLINE</string>
+    <string name="station_offline_title">Station 3 offline</string>
     <string name="station_offline_message">Wait for Station 3 to reconnect. Scanning resumes when it comes back.</string>
 </resources>
