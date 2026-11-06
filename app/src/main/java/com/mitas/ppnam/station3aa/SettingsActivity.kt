@@ -252,7 +252,10 @@ class SettingsActivity : SessionActivity() {
      */
     private fun updateDiagnostics(status: ConnectionStatus) {
         val green = getColor(R.color.success)
-        val blue = getColor(R.color.brand_tint)
+        // Amber, the same colour the toolbar pill uses for these states: brand_tint (pink) here
+        // showed one broker state in two colours on the same screen (skill critique
+        // 2026-11-06, P2-1). warning on card_background is 7.6:1.
+        val amber = getColor(R.color.warning)
         val red = getColor(R.color.danger)
         val muted = getColor(R.color.text_muted)
 
@@ -260,7 +263,7 @@ class SettingsActivity : SessionActivity() {
             ConnectionStatus.CONNECTED, ConnectionStatus.STATION_OFFLINE ->
                 binding.pillBroker.setAppearance(green, "Connected")
             ConnectionStatus.RECONNECTING ->
-                binding.pillBroker.setAppearance(blue, "Reconnecting")
+                binding.pillBroker.setAppearance(amber, "Reconnecting")
             ConnectionStatus.OFFLINE ->
                 binding.pillBroker.setAppearance(red, "Offline")
             ConnectionStatus.BROKER_REJECTED ->
@@ -271,7 +274,7 @@ class SettingsActivity : SessionActivity() {
         // "offline" there would blame the station for the broker's fault.
         when (status) {
             ConnectionStatus.CONNECTED -> binding.pillStation.setAppearance(green, "Online")
-            ConnectionStatus.STATION_OFFLINE -> binding.pillStation.setAppearance(blue, "Offline")
+            ConnectionStatus.STATION_OFFLINE -> binding.pillStation.setAppearance(amber, "Offline")
             else -> binding.pillStation.setAppearance(muted, "Unknown")
         }
     }
