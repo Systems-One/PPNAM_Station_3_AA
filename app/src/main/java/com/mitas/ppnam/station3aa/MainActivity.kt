@@ -40,6 +40,8 @@ class MainActivity : SessionActivity() {
     private var statusIsError = false
     private var statusIsNotice = false
     private val mainHandler = Handler(Looper.getMainLooper())
+    /** Suite rule S3: the same value refused locally again within 1.5 s plays nothing. */
+    private val refusals = LocalRefusalDebounce(nowMs = SystemClock::elapsedRealtime)
     /** elapsedRealtime when the source card appeared, or [SourceCardPolicy.NOT_SHOWN]. */
     private var sourceShownAtMs = SourceCardPolicy.NOT_SHOWN
     private val hideSourceCard = Runnable { hideSource() }
@@ -94,14 +96,19 @@ class MainActivity : SessionActivity() {
             if (action != ScannerApp.ACTION_BARCODE && action != ScannerApp.ACTION_RFID) return
             val data = intent.getStringExtra(ScannerApp.EXTRA_SCAN_DATA) ?: return
             SessionGuard.touch()
-            // The Settings shortcut tag opens Settings app-wide; it is never a source.
-            if (data.trim() == ScannerApp.SETTINGS_RFID) return
-            // A user badge (Account Management EPC prefix) is never a source pallet.
-            if (action == ScannerApp.ACTION_RFID && UserTagPolicy.isUserTag(data)) {
-                runOnUiThread {
-                    Toast.makeText(this@MainActivity, R.string.user_badge_not_source, Toast.LENGTH_SHORT).show()
+            when (ScanSoundPolicy.forRead(isRfid = action == ScannerApp.ACTION_RFID, data = data)) {
+                // The Settings shortcut tag opens Settings app-wide; it is never a source.
+                ReadVerdict.IGNORE -> return
+                // A user badge (Account Management EPC prefix) is never a source pallet.
+                ReadVerdict.BADGE -> {
+                    runOnUiThread {
+                        ScanFeedback.play(this@MainActivity, refusals.refuse(data))
+                        Toast.makeText(this@MainActivity, R.string.user_badge_not_source, Toast.LENGTH_SHORT).show()
+                    }
+                    return
                 }
-                return
+                // Submitted below; it sounds on Station 3's answer or a local refusal.
+                ReadVerdict.TAKE -> Unit
             }
             runOnUiThread {
                 if (!binding.scrollMasterBatch.isShown) return@runOnUiThread
@@ -129,6 +136,7 @@ class MainActivity : SessionActivity() {
         // window shrinks for the keyboard and scrollMasterBatch can scroll the button into view.
 
         workflow = WorkflowClient.getInstance(this)
+        ScanFeedback.warmUp(this)
         setupHome()
         setupMasterBatch()
         savedInstanceState?.let { restoreScanState(it) }
@@ -187,19 +195,27 @@ class MainActivity : SessionActivity() {
     }
 
     private fun submitScan(raw: String?) {
-        if (!canScan()) {
-            updateScanAvailability()
-            return
-        }
-        val scanValue = WorkflowProtocol.normalizeScan(raw)
-        if (scanValue == null) {
-            showScanStatus(getString(R.string.scan_invalid), pending = false, retry = false)
-            return
+        // Suite rule S1: a scan refused here sounds fail now; a sent one sounds on the answer.
+        val pendingValue = if (workflow.isScanPending) lastScanValue else null
+        val scanValue = when (val decision = ScanSoundPolicy.forSubmit(raw, canScan(), pendingValue)) {
+            SubmitDecision.Blocked, SubmitDecision.Repeat -> {
+                ScanFeedback.play(this, decision.sound?.let { refusals.refuse(raw.orEmpty()) })
+                updateScanAvailability()
+                return
+            }
+            SubmitDecision.Invalid -> {
+                ScanFeedback.play(this, refusals.refuse(raw.orEmpty()))
+                showScanStatus(getString(R.string.scan_invalid), pending = false, retry = false)
+                return
+            }
+            SubmitDecision.Busy -> return
+            is SubmitDecision.Send -> decision.scanValue
         }
         lastScanValue = scanValue
 
         val sent = workflow.sourceScan(scanValue) { outcome -> onScanOutcome(outcome) }
         if (!sent) {
+            ScanFeedback.play(this, refusals.refuse(scanValue))
             showScanStatus(getString(R.string.scan_busy), pending = true, retry = false)
             return
         }
@@ -211,6 +227,8 @@ class MainActivity : SessionActivity() {
     }
 
     private fun onScanOutcome(outcome: WorkflowOutcome) {
+        // Sounds even if the screen is going away (e.g. a session rejection): the scan was answered.
+        ScanFeedback.play(this, ScanSoundPolicy.forOutcome(outcome))
         if (isFinishing || isDestroyed) return
         when (outcome) {
             is WorkflowOutcome.SourceSelected -> {
